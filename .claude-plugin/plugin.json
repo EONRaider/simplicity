@@ -1,0 +1,14 @@
+{
+  "name": "simplicity",
+  "version": "0.1.0",
+  "description": "Session ergonomics for Claude Code: /simplicity:just-ask collects every open question in the session and asks them through AskUserQuestion with a recommended option and reasoning; /simplicity:just-say-it re-states the latest response(s) as a short plain-language numbered list.",
+  "author": {
+    "name": "EONRaider",
+    "url": "https://github.com/EONRaider"
+  },
+  "homepage": "https://github.com/EONRaider/simplicity",
+  "repository": "https://github.com/EONRaider/simplicity",
+  "license": "MIT",
+  "keywords": ["productivity", "questions", "summaries", "concise", "ask-user-question"],
+  "skills": ["./skills/just-ask", "./skills/just-say-it"]
+}

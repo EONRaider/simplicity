@@ -1,0 +1,60 @@
+{
+  "skill_name": "just-ask",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). AskUserQuestion cannot render under `claude -p`, so both configurations are told to treat it as available but print each call's tool input as a fenced json block instead.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:just-ask",
+      "baseline_prompt": "Before you continue, ask me about anything that's still open.",
+      "expected_output": "Two rounds are needed. The first AskUserQuestion payload carries the 4 most blocking genuine questions (e.g. export format, overwrite behavior, destination argument vs --output, timestamps), each with a recommended option listed first and per-option reasoning; the user is told a second round follows (gzip, --quiet, tests). The Python-version question (answered by pyproject.toml) and Windows support (answered by the user) are not asked.",
+      "files": [
+        "evals/files/session-six-open.md"
+      ],
+      "expectations": [
+        "Emits exactly one AskUserQuestion payload (a {questions:[...]} object) for this round",
+        "The round contains at most 4 questions",
+        "Every question header is 12 characters or fewer",
+        "Every question has 2-4 options, with the first (and only the first) labelled '(Recommended)'",
+        "No manually added 'Other' option",
+        "Every option has a description carrying its reasoning",
+        "Does not ask about the Python version (pyproject.toml answers it)",
+        "Does not ask about Windows support (the user already answered it)",
+        "Tells the user more remains (a further round) or states the assumptions it made instead of asking"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:just-ask",
+      "baseline_prompt": "Before you continue, ask me about anything that's still open.",
+      "expected_output": "States there are no open questions and stops. No AskUserQuestion payload, no invented questions.",
+      "files": [
+        "evals/files/session-nothing-open.md"
+      ],
+      "expectations": [
+        "Replies exactly 'No open questions.'",
+        "Emits no AskUserQuestion payload"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:just-ask",
+      "baseline_prompt": "Before you continue, ask me about anything that's still open.",
+      "expected_output": "Only the genuinely open decisions are asked: the 429 response vs account lockout, and whether successful logins reset the counter. The test-runner (vitest) and Redis-client (ioredis) questions are dropped because package.json answers them; req.ip vs socket address is resolved from config.trustProxy rather than asked, or asked with req.ip recommended.",
+      "files": [
+        "evals/files/session-answerable.md"
+      ],
+      "expectations": [
+        "Emits exactly one AskUserQuestion payload (a {questions:[...]} object) for this round",
+        "The round contains at most 4 questions",
+        "Every question header is 12 characters or fewer",
+        "Every question has 2-4 options, with the first (and only the first) labelled '(Recommended)'",
+        "No manually added 'Other' option",
+        "Every option has a description carrying its reasoning",
+        "Does not ask which test runner is used (package.json answers it)",
+        "Does not ask whether a Redis client must be added (ioredis is already a dependency)",
+        "Asks about the over-limit response (429 vs account lockout)",
+        "Asks whether a successful login resets the counter"
+      ]
+    }
+  ]
+}

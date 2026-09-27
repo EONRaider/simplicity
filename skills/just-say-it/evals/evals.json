@@ -1,0 +1,63 @@
+{
+  "skill_name": "just-say-it",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin).",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:just-say-it",
+      "baseline_prompt": "Summarize your last response.",
+      "expected_output": "A numbered list with no preamble, each item a bold short label plus one plain sentence, covering the four causes (N+1 queries, blocking carousel, oversized hero image, session-keyed cache) and the suggested order. No hedging filler, no new information, no tool calls.",
+      "files": [
+        "evals/files/session-long-response.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "No tool calls were made",
+        "Covers all four causes: N+1 queries, the blocking carousel, the hero image, the session-keyed cache",
+        "No open-decisions line (nothing is left open)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:just-say-it 3",
+      "baseline_prompt": "Summarize your last 3 responses.",
+      "expected_output": "A single numbered list spanning all three assistant responses: where CI time goes, the two cheap wins (pip cache, Dockerfile layer order), and the test parallelism plan (xdist with per-worker DB names, sharding), each as bold label plus one sentence. No preamble, no new information.",
+      "files": [
+        "evals/files/session-three-responses.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "No tool calls were made",
+        "Covers pip caching, Dockerfile layer order, test parallelism, and sharding",
+        "No open-decisions line (nothing is left open)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:just-say-it",
+      "baseline_prompt": "Summarize your last response.",
+      "expected_output": "A numbered list of the plan (S3-compatible adapter via the Storage interface, presigned URLs, batched checksum-verified migration) followed by a final line naming the two open decisions (provider: S3 vs R2; keep 30-day local fallback or delete) and pointing to /simplicity:just-ask.",
+      "files": [
+        "evals/files/session-open-decisions.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "No tool calls were made",
+        "Covers the storage adapter, presigned URLs, and the checksum-verified migration",
+        "Ends with an 'Open decisions:' line that points to /simplicity:just-ask"
+      ]
+    }
+  ]
+}
