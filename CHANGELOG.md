@@ -62,6 +62,9 @@ The remaining with-skill misses are mostly Haiku:
   - It never repeats a secret's value.
   - It never messages a person without confirmation.
   - It skips steps whose session tools don't exist.
+  - It no longer triggers on the bare word "cleanup", and its description
+    says it isn't for cleaning up code. The 20-query trigger set for the
+    description optimizer is in `skills/cleanup/evals/trigger_eval_set.json`.
   - When `just-finish-it` runs it, every question goes back to
     `just-finish-it` as a pending item.
 - Evals for both skills, and `RELEASING.md` with the tag and marketplace

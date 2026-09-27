@@ -1,0 +1,82 @@
+[
+  {
+    "query": "cleanup",
+    "should_trigger": true
+  },
+  {
+    "query": "wrap this session up",
+    "should_trigger": true
+  },
+  {
+    "query": "ok I'm done for today, close things out before I go",
+    "should_trigger": true
+  },
+  {
+    "query": "prepare this session for archival",
+    "should_trigger": true
+  },
+  {
+    "query": "before I archive this chat, make sure nothing is still running or left uncommitted",
+    "should_trigger": true
+  },
+  {
+    "query": "we're finished here, tidy up the session",
+    "should_trigger": true
+  },
+  {
+    "query": "end of day. close out the session properly please",
+    "should_trigger": true
+  },
+  {
+    "query": "run the end-of-session checklist",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm about to archive this, anything I should know first?",
+    "should_trigger": true
+  },
+  {
+    "query": "that's everything for this task, let's wind the session down",
+    "should_trigger": true
+  },
+  {
+    "query": "clean up this function, it's way too long",
+    "should_trigger": false
+  },
+  {
+    "query": "can you clean up the imports in utils.py",
+    "should_trigger": false
+  },
+  {
+    "query": "remove the dead code under src/legacy",
+    "should_trigger": false
+  },
+  {
+    "query": "delete everything in dist/ and rebuild",
+    "should_trigger": false
+  },
+  {
+    "query": "tidy up the README formatting",
+    "should_trigger": false
+  },
+  {
+    "query": "wrap this call in a try/except",
+    "should_trigger": false
+  },
+  {
+    "query": "archive the old log files into a tarball",
+    "should_trigger": false
+  },
+  {
+    "query": "summarize what we did this session in a few bullets",
+    "should_trigger": false
+  },
+  {
+    "query": "squash these three commits before I push",
+    "should_trigger": false
+  },
+  {
+    "query": "stop the dev server, I need port 5173 for something else",
+    "should_trigger": false
+  }
+]
