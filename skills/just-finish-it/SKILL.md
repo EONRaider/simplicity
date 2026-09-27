@@ -4,7 +4,7 @@ description: Finalizes the work of an implementation session. Pushes this sessio
 disable-model-invocation: true
 argument-hint: "[PR numbers | repo path]"
 license: MIT (see plugin root LICENSE)
-compatibility: Claude Code. Needs git and an authenticated GitHub CLI (gh). Archiving uses the desktop app's session tools; in the CLI the skill stops at "ready to close" instead.
+compatibility: Claude Code. Needs git, plus an authenticated GitHub CLI (gh) or the GitHub MCP server's tools. Archiving uses the desktop app's session tools; in the CLI the skill stops at "ready to close" instead.
 ---
 
 # just-finish-it
@@ -15,6 +15,37 @@ If the session is in plan mode, stop and say that this command pushes and merges
 
 Work through the steps in order. Keep a running **pending list** from the first step on. Anything that stops a step from finishing cleanly goes on it, and the pending list decides step 7. Never repeat a secret's value anywhere, including the pending list.
 
+## Transport: gh or the GitHub MCP server
+
+Use `gh` when it's installed and `gh auth status` succeeds. Otherwise use the GitHub MCP server's tools, usually named `mcp__github__<tool>`. Cloud sessions, such as Claude Code on the web, often have only those. If neither exists, or the remote isn't GitHub, do step 3's pushes only, and put PR creation and merging for that repository on the pending list. Pick the transport once per repository in step 1, and show it in the scope table.
+
+The steps below name `gh` commands. On the MCP path, make the matching call from this table instead. Take `owner` and `repo` from `git remote get-url origin`. The table was checked against github-mcp-server v1.12.2; before relying on a parameter, check that the loaded tool's schema has it.
+
+| `gh` call | GitHub MCP call |
+|---|---|
+| `gh repo view --json nameWithOwner,defaultBranchRef` | `search_repositories` with `query: "repo:<owner>/<repo>"`. Read `default_branch` from the one result. |
+| `gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed` | No tool returns the allowed merge methods. See step 1's merge-method rule. |
+| `gh api repos/<owner/repo>/rules/branches/<default>` | `repository_ruleset_read` with `level: "repository"`, `method: "get_rules_for_branch"`, `branch: "<default>"`. |
+| `gh pr create` | `create_pull_request` with `owner`, `repo`, `title`, `head`, `base` and `body`. |
+| `gh pr checks <n> --watch`, then `--json name,bucket` | `pull_request_read` with `method: "get_check_runs"` and again with `method: "get_status"`. There is no watch: re-read about once a minute, with the same 20-minute limit. |
+| `gh pr view <n> --json state,isDraft,mergeable,mergeStateStatus,headRefOid` | `pull_request_read` with `method: "get"`. Read `state`, `draft`, `merged`, `mergeable_state`, `head.sha` and `base.ref`. |
+| `gh pr view <n> --json reviewDecision,latestReviews` | `pull_request_read` with `method: "get_reviews"` and `perPage: 100`. |
+| `gh pr merge <n> --<method> --match-head-commit <sha>` | `merge_pull_request` with `pullNumber`, `merge_method` and `expectedHeadSha: "<sha>"`. |
+| `--delete-branch` | No MCP tool deletes a branch. See "Branch deletion" below. |
+| `gh pr update-branch <n>` | `update_pull_request_branch` with `expectedHeadSha` set to the PR's current head. |
+
+The MCP results use REST field names, so step 4's merge conditions translate like this:
+
+- **Checks.** A check run passes when its `status` is `completed` and its `conclusion` is `success`, `neutral` or `skipped`. Any other conclusion is a failure. The combined status passes when its `state` is `success`. A combined status with `total_count` 0 has no statuses at all, so it counts as passing even though its `state` reads `pending`. Page through check runs when `total_count` is larger than the page. If both `get_check_runs` and `get_status` return `total_count` 0, that's "no checks reported", and step 4's rule for it applies. To see whether recently merged PRs had checks, call `list_pull_requests` with `state: "closed"`, `base: "<default>"` and `sort: "updated"`, then `get_check_runs` on the most recent ones that have a `merged_at`.
+- **Mergeability.** `get` returns neither `mergeable` nor `reviewDecision`. Require `mergeable_state` to be `clean` or `has_hooks`, the lowercase REST forms of `CLEAN` and `HAS_HOOKS`; either one means the PR is mergeable. `blocked` covers a missing required review. If `mergeable_state` is missing or `unknown`, GitHub is still computing it: wait a few seconds and read it again.
+- **Changes requested.** From `get_reviews`, find each reviewer's standing verdict: their latest `APPROVED`, `CHANGES_REQUESTED` or `DISMISSED` review. A later `COMMENTED` review doesn't clear an earlier `CHANGES_REQUESTED`. Don't merge while any reviewer stands at `CHANGES_REQUESTED`.
+- **Head SHA.** Immediately before `merge_pull_request`, call `get` again and compare `head.sha` with the SHA you recorded. On a mismatch, don't merge: the PR is pending with "head moved". Also pass the recorded SHA as `expectedHeadSha`, so GitHub refuses the merge if the head moves after that read. If the loaded `merge_pull_request` has no `expectedHeadSha` parameter, the re-read is the only guard. That leaves a check-then-act race the `gh` path doesn't have, because GitHub itself checks `--match-head-commit`. Say so in the report.
+- **Merged.** Only `merged: true` from `get` counts as merged.
+- **Merge queue.** `repository_ruleset_read` is in the server's `governance` toolset, which is off by default. If it isn't loaded, the merge-queue state is unknown. Never merge blind: put that repository's PRs on the pending list with "couldn't verify merge queue". The next step is to enable the `governance` toolset, or to rerun where `gh` works.
+- **Branch deletion.** After a merge, run `git ls-remote --exit-code --heads origin <branch>`. If the branch is gone, the repository's auto-delete-head-branches setting removed it; say so in the report. If it's still there, leave it and put it on the pending list with the next step `git push origin --delete <branch>`.
+
+Every safety rule in this skill holds on both transports: merge only with every check green, the PR mergeable and clean, no changes requested, and the head SHA unchanged. Never bypass branch protection, enable auto-merge, or force-push, by any route.
+
 ## 1. Scope and repo facts
 
 **In scope** are the branches this session created, committed to, or pushed, and their PRs. A PR someone else opened is in scope only when `$ARGUMENTS` names it. A mention earlier in the conversation isn't enough. If `$ARGUMENTS` names PR numbers or a repository path, narrow the scope to those. If a bare PR number could belong to more than one repository in scope, ask which.
@@ -23,10 +54,10 @@ Never push to a repository's default branch. Commits made on it this session go 
 
 For each repository in scope, settle these facts now, before anything waits on CI:
 
-- **Owner and default branch.** Run `gh repo view --json nameWithOwner,defaultBranchRef`. Pass `-R <owner/repo>` to every `gh pr` command from here on. PR numbers are per repository, and `-R` also keeps `gh pr merge --delete-branch` from touching local branches or worktrees (step 4).
-- **Is GitHub usable?** Check `gh auth status`. If gh is missing or unauthenticated, or the remote isn't GitHub, do step 3's pushes only. PR creation and merging for that repo go on the pending list.
-- **Merge method.** Use the method the project's CLAUDE.md or CONTRIBUTING names. Otherwise check `gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed`. When only one method is allowed, use it. When several are, ask now, in one question covering every such repository, with squash as the recommended option.
-- **Merge queue.** Check `gh api repos/<owner/repo>/rules/branches/<default>` for a rule of type `merge_queue`. If there is one, don't merge anything in that repository. Put its PRs on the pending list with "repo uses a merge queue: enqueue it yourself".
+- **Transport.** Pick `gh` or the GitHub MCP server, as the Transport section says.
+- **Owner and default branch.** Run `gh repo view --json nameWithOwner,defaultBranchRef`. Pass `-R <owner/repo>` to every `gh pr` command from here on. PR numbers are per repository, and `-R` also keeps `gh pr merge --delete-branch` from touching local branches or worktrees (step 4). On MCP, pass `owner` and `repo` to every call.
+- **Merge method.** Use the method the project's CLAUDE.md or CONTRIBUTING names. Otherwise check `gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed`. When only one method is allowed, use it. When several are, or on MCP, where the allowed methods can't be read, ask now, in one question covering every such repository, with squash as the recommended option.
+- **Merge queue.** Check `gh api repos/<owner/repo>/rules/branches/<default>` for a rule of type `merge_queue`. If there is one, don't merge anything in that repository. Put its PRs on the pending list with "repo uses a merge queue: enqueue it yourself". If the queue state can't be read, treat it the same way, with "couldn't verify merge queue".
 
 Also record, per repository, `git status --short`, `git stash list`, `git worktree list`, and every in-scope branch with its PR number, if it has one. Then show the scope as a short table (repo, branch, PR, state) before anything leaves the machine. Don't wait for approval unless the scope surprised you. The user already asked for this.
 
@@ -70,7 +101,7 @@ For each PR in scope that isn't half-done, doesn't belong to a dirty branch, and
    - `reviewDecision` isn't `REVIEW_REQUIRED` or `CHANGES_REQUESTED`, and no entry in `latestReviews` has state `CHANGES_REQUESTED`;
    - `headRefOid` still matches the SHA you recorded.
 
-   Then run `gh pr merge <n> -R <owner/repo> --<method> --delete-branch --match-head-commit <sha>`. With `-R`, `--delete-branch` deletes only the remote branch. Step 5 handles local branches.
+   Then run `gh pr merge <n> -R <owner/repo> --<method> --delete-branch --match-head-commit <sha>`. With `-R`, `--delete-branch` deletes only the remote branch. Step 5 handles local branches. On MCP, re-read the head SHA first and handle the remote branch as the Transport section says.
 4. **Confirm the merge.** Read `gh pr view <n> -R <owner/repo> --json state` afterwards. Only `MERGED` counts as merged. If the command failed or the state is anything else, put the PR on the pending list with the error. Don't retry with other flags.
 5. **Otherwise, don't merge.** Put the PR on the pending list with the exact reason, such as the failing check's name, "awaiting review", "changes requested by @x", "conflicts with main", "behind main", or "draft".
 
@@ -135,4 +166,4 @@ Follow these rules for the list:
 
 ## Lifecycle
 
-**Encoded-preference, timelessness 7/10, last verified against claude-opus-5-5 and gh 2.101.0 (2026-09).** The workflow order and its safety rules (merge only on green, never commit for the user, archive only when nothing is pending) are fixed preferences that don't age with model capability. It scores 7 rather than higher because steps 1–5 encode today's `gh` behavior: `-R` turning `--delete-branch` remote-only, `pr checks` exit codes and buckets, `mergeStateStatus` values, and the branch-rules API for merge queues. Step 7 also depends on the desktop app's archive tool. Re-verify those whenever `gh` or the session tools change.
+**Encoded-preference, timelessness 7/10, last verified against claude-opus-5-5, gh 2.101.0 and github-mcp-server v1.12.2 (2026-09).** The workflow order and its safety rules (merge only on green, never commit for the user, archive only when nothing is pending) are fixed preferences that don't age with model capability. It scores 7 rather than higher because steps 1–5 encode today's `gh` behavior: `-R` turning `--delete-branch` remote-only, `pr checks` exit codes and buckets, `mergeStateStatus` values, and the branch-rules API for merge queues. The Transport section also depends on the GitHub MCP server's tool surface: its tool names and parameters, the REST field names it returns, and which toolsets are on by default. Step 7 depends on the desktop app's archive tool. Re-verify those whenever `gh`, the GitHub MCP server or the session tools change.
