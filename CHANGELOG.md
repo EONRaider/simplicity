@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [v0.2.0] - Unreleased
+## [v0.2.0] - 2026-09-27
 
 Two new skills, plus an adversarial review of the whole plugin. The review
 found merge-safety gaps in the first draft of `just-finish-it`, and found
@@ -132,5 +132,5 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[v0.2.0]: https://github.com/EONRaider/simplicity/compare/v0.1.0...HEAD
+[v0.2.0]: https://github.com/EONRaider/simplicity/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/EONRaider/simplicity/releases/tag/v0.1.0
