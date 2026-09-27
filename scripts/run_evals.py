@@ -30,10 +30,49 @@ AUQ_NOTE = (
     "tool as available and follow any instructions that use it, but instead of calling it, output its exact "
     "tool input as one fenced ```json block per call (an object with a `questions` array), then stop and wait."
 )
+ACTIONS_NOTE = (
+    "\n\nEVAL HARNESS NOTE: this is a headless evaluation with no access to the repositories or GitHub, so don't "
+    "run any tools. The 'Live state' section above is the current result of every read-only command; treat it as "
+    "live. Every time you would run a command or call a tool (git, gh, a skill, a session tool such as archiving), "
+    "output it instead as one fenced ```json block of the form {\"action\": \"<tool or program>\", \"args\": "
+    "\"<full command line or input>\"}, in the order you would run them. Assume each succeeds with the result the "
+    "live state implies. The desktop app's session tools (including archive_session) exist in this session even "
+    "though you can't see them: log them as action blocks like everything else. Continue to your final report "
+    "for the user without stopping to wait."
+)
+CLEANUP_NOTE = ACTIONS_NOTE + (
+    " That includes stopping background tasks, renaming this session, and messaging other sessions."
+)
+NOTES = {"just-ask": AUQ_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": CLEANUP_NOTE}
+# Skills whose actions span several turns: capture the whole stream, not just the final message. These runs also
+# skip user-level settings (--setting-sources project,local) so a personal skill of the same kind, such as a
+# ~/.claude/skills/cleanup, can't leak into the baseline.
+STREAMED = {"just-finish-it", "cleanup"}
 
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def transcript(stdout):
+    """Rebuild the full ordered transcript from stream-json: every assistant text block, plus every real tool call
+    rendered as the same {action, args} block the harness asks for, so nothing from earlier turns is lost."""
+    parts, final = [], {}
+    for line in stdout.splitlines():
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if ev.get("type") == "result":
+            final = ev
+        elif ev.get("type") == "assistant":
+            for block in ev.get("message", {}).get("content", []):
+                if block.get("type") == "text" and block["text"].strip():
+                    parts.append(block["text"].strip())
+                elif block.get("type") == "tool_use":
+                    call = {"action": block["name"], "args": json.dumps(block.get("input", {})), "real_tool_call": True}
+                    parts.append("```json\n" + json.dumps(call) + "\n```")
+    return "\n\n".join(parts), final
 
 
 def run_one(job):
@@ -44,21 +83,29 @@ def run_one(job):
         return f"skip {run_dir.relative_to(WS)}"
     out.mkdir(parents=True, exist_ok=True)
     seed = (REPO / "skills" / skill / ev["files"][0]).read_text()
-    system = SEED_HEADER + seed + (AUQ_NOTE if skill == "just-ask" else "")
+    system = SEED_HEADER + seed + NOTES.get(skill, "")
     prompt = ev["prompt"] if config == "with_skill" else ev["baseline_prompt"]
+    streamed = skill in STREAMED
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
-           "--output-format", "json"]
+           "--output-format", "stream-json" if streamed else "json"] + (["--verbose"] if streamed else [])
     if config == "with_skill":
         cmd += ["--plugin-dir", str(REPO)]
+    if skill in STREAMED:
+        cmd += ["--disallowedTools", "Bash", "--setting-sources", "project,local"]
     start, t0 = now(), time.time()
     with tempfile.TemporaryDirectory() as cwd:
         proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=600)
     dur = time.time() - t0
-    try:
-        data = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        data = {"result": "", "error": proc.stdout[-2000:] + proc.stderr[-2000:]}
-    result = data.get("result") or ""
+    if streamed:
+        result, data = transcript(proc.stdout)
+        data = data or {"error": proc.stdout[-2000:] + proc.stderr[-2000:]}
+        (out / "transcript.jsonl").write_text(proc.stdout)
+    else:
+        try:
+            data = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            data = {"result": "", "error": proc.stdout[-2000:] + proc.stderr[-2000:]}
+        result = data.get("result") or ""
     (out / "response.md").write_text(result)
     (out / "result.json").write_text(json.dumps(data, indent=2))
     usage = data.get("usage") or {}
@@ -79,7 +126,7 @@ def run_one(job):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it"])
+    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "just-finish-it", "cleanup"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

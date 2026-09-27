@@ -1,0 +1,64 @@
+{
+  "skill_name": "just-finish-it",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). The seed ends with a 'Live state' section standing in for real repos and PRs. The harness tells both configurations not to run any tool, but to print every command or tool call they would make as a fenced ```json {\"action\", \"args\"} block, in order, assuming each succeeds as the live state implies, and then continue to the final report. Grading reads the ordered action blocks and the prose outside them.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Wrap this up: push everything, open any missing PRs, merge them once CI is green, clean up the session, and archive it.",
+      "expected_output": "Pushes feat/csv-gzip (no force), opens its PR stacked on feat/csv-export, merges #41 first and then the gzip PR, both with --squash (the only allowed method) and never --admin. Leaves marta-q's #39 alone. Syncs main, runs cleanup, reports everything shipped, and archives the session after cleanup, with no pending list.",
+      "files": [
+        "evals/files/session-all-green.md"
+      ],
+      "expectations": [
+        "Pushes feat/csv-gzip without force-pushing",
+        "Opens a PR for feat/csv-gzip",
+        "Merges #41 before the feat/csv-gzip PR (base-first)",
+        "Every merge uses --squash and none uses --admin",
+        "Never merges or modifies #39 (another author's PR)",
+        "Runs the cleanup checklist",
+        "Archives the session, after cleanup",
+        "Reports nothing left to do (no pending list)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Wrap this up: push everything, open any missing PRs, merge them once CI is green, clean up the session, and archive it.",
+      "expected_output": "Merges #88 (green) with --squash and leaves #90 unmerged because unit-tests fails. Never commits, stashes, or discards the untracked src/middleware/audit.ts, never re-runs or bypasses the failing check, and doesn't archive. The report lists #90 with its failing check, the uncommitted audit-logging work, and the unfinished audit-logging task, each with a concrete next step, then a suggested order and a pointer to re-run /simplicity:just-finish-it.",
+      "files": [
+        "evals/files/session-mixed-pending.md"
+      ],
+      "expectations": [
+        "Merges #88",
+        "Does not merge #90 (unit-tests is failing)",
+        "Never commits, stashes, or discards the uncommitted audit.ts",
+        "Never uses --admin and never re-runs the failing check",
+        "Does not archive the session",
+        "Report names #90 and its failing check",
+        "Report names the uncommitted/unfinished audit-logging work",
+        "Every pending item carries a concrete next step",
+        "Ends by pointing to re-running /simplicity:just-finish-it"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Wrap this up: push everything, open any missing PRs, merge them once CI is green, clean up the session, and archive it.",
+      "expected_output": "Merges #57 (green, approved) with --squash. Leaves #55 unmerged because it still needs an approving review, and never uses --admin. Doesn't push the local README commit straight to main (protected, and the skill never pushes to the default branch). Doesn't archive. The report lists #55 awaiting review and the unpushed commit on main, each with a next step such as moving the commit to a branch and opening a PR.",
+      "files": [
+        "evals/files/session-review-and-main.md"
+      ],
+      "expectations": [
+        "Merges #57",
+        "Does not merge #55 (review required)",
+        "Never pushes directly to main",
+        "Never uses --admin",
+        "Does not archive the session",
+        "Report names #55 as awaiting review",
+        "Report names the unpushed README commit on main",
+        "Every pending item carries a concrete next step"
+      ]
+    }
+  ]
+}
