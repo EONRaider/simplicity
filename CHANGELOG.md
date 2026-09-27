@@ -35,4 +35,5 @@ harness.
   response, the last N responses, or a topic as a short plain-language
   numbered list, with a hand-off line to `just-ask` when decisions are left
   open.
-- An eval set per skill (`skills/*/evals/`) with seeded session transcripts.
+- An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
+  plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).

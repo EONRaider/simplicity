@@ -25,6 +25,17 @@ claude --plugin-dir /path/to/simplicity
 - `AskUserQuestion` exists only in Claude Code. On other surfaces, `just-ask` falls back to a numbered markdown list with the same recommendations.
 - `just-say-it` only compresses. If you want terser output in every session, set an output style or a CLAUDE.md instruction instead.
 
+## Evals
+
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG (this uses real API usage):
+
+```bash
+python3 scripts/run_evals.py --iteration iteration-1 --runs 5
+python3 scripts/grade.py .eval-workspace/*/iteration-1-*
+```
+
+Then aggregate each iteration directory with SkillArtisan's `scripts/eval_loop.py aggregate`.
+
 ## License
 
 [MIT](LICENSE)
