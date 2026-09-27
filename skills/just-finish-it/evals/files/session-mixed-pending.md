@@ -41,6 +41,14 @@ Now starting audit logging on branch `feat/audit-log`. I've sketched `src/middle
 These are the results the read-only commands would return right now. Treat them as live.
 
 ```
+$ gh auth status
+✓ Logged in to github.com account me
+$ gh repo view acme/acme-portal --json nameWithOwner,defaultBranchRef
+{"nameWithOwner": "acme/acme-portal", "defaultBranchRef": {"name": "main"}}
+$ gh api repos/acme/acme-portal/rules/branches/main
+[]
+$ git -C ~/code/acme-portal worktree list
+~/code/acme-portal  0000000 [feat/audit-log]
 $ git -C ~/code/acme-portal status --short --branch
 ## feat/audit-log
 ?? src/middleware/audit.ts

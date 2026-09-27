@@ -1,12 +1,12 @@
 {
   "skill_name": "just-say-it",
-  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin).",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). The format checks (label, dash or colon, one sentence, 7 items) measure the output format this skill exists to produce; the baseline prompt doesn't ask for it, so most of this skill's delta is format compliance by design. The coverage checks measure whether the content survives the compression.",
   "evals": [
     {
       "id": 1,
       "prompt": "/simplicity:just-say-it",
       "baseline_prompt": "Summarize your last response.",
-      "expected_output": "A numbered list with no preamble, each item a bold short label plus one plain sentence, covering the four causes (N+1 queries, blocking carousel, oversized hero image, session-keyed cache) and the suggested order. No hedging filler, no new information, no tool calls.",
+      "expected_output": "A numbered list with no preamble, each item a bold short label plus one plain sentence, covering the four causes (N+1 queries, blocking carousel, oversized hero image, session-keyed cache) and the suggested order. No hedging filler, no new information.",
       "files": [
         "evals/files/session-long-response.md"
       ],
@@ -16,7 +16,6 @@
         "7 items or fewer",
         "Every label is 4 words or fewer",
         "Each item is a single sentence",
-        "No tool calls were made",
         "Covers all four causes: N+1 queries, the blocking carousel, the hero image, the session-keyed cache",
         "No open-decisions line (nothing is left open)"
       ]
@@ -35,7 +34,6 @@
         "7 items or fewer",
         "Every label is 4 words or fewer",
         "Each item is a single sentence",
-        "No tool calls were made",
         "Covers pip caching, Dockerfile layer order, test parallelism, and sharding",
         "No open-decisions line (nothing is left open)"
       ]
@@ -54,9 +52,8 @@
         "7 items or fewer",
         "Every label is 4 words or fewer",
         "Each item is a single sentence",
-        "No tool calls were made",
         "Covers the storage adapter, presigned URLs, and the checksum-verified migration",
-        "Ends with an 'Open decisions:' line that points to /simplicity:just-ask"
+        "Ends by naming the two open decisions (provider, local fallback)"
       ]
     }
   ]

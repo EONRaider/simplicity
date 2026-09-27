@@ -38,7 +38,6 @@ Background tasks started by this session: none.
 Other active sessions:
   "Landing page copy"   (repo ~/code/marketing-site)  idle
   "Flaky e2e triage"    (repo ~/code/web-app)         running
-Nothing in this session relates to either one.
 
 This session's title: "New session" (auto-generated).
 No suggestion chips were spawned this session. No scratch files were created.

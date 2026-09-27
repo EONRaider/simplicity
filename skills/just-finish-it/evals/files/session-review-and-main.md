@@ -38,6 +38,14 @@ Both tasks are complete.
 These are the results the read-only commands would return right now. Treat them as live.
 
 ```
+$ gh auth status
+✓ Logged in to github.com account me
+$ gh repo view acme/atlas-api --json nameWithOwner,defaultBranchRef
+{"nameWithOwner": "acme/atlas-api", "defaultBranchRef": {"name": "main"}}
+$ gh api repos/acme/atlas-api/rules/branches/main
+[]
+$ git -C ~/code/atlas-api worktree list
+~/code/atlas-api  3d2a9f1 [main]
 $ git -C ~/code/atlas-api status --short --branch
 ## main...origin/main [ahead 1]
 $ git -C ~/code/atlas-api stash list
@@ -57,5 +65,4 @@ $ gh pr view 55 --json isDraft,mergeable,mergeStateStatus,reviewDecision,headRef
 $ gh pr checks 55
 build   pass   3m52s
 
-Branch protection on main: 1 approving review required; direct pushes to main are blocked.
 ```

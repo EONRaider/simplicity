@@ -40,6 +40,14 @@ Both pieces are done. Task list:
 These are the results the read-only commands would return right now. Treat them as live.
 
 ```
+$ gh auth status
+✓ Logged in to github.com account me
+$ gh repo view acme/ledger --json nameWithOwner,defaultBranchRef
+{"nameWithOwner": "acme/ledger", "defaultBranchRef": {"name": "main"}}
+$ gh api repos/acme/ledger/rules/branches/main
+[]
+$ git -C ~/code/ledger worktree list
+~/code/ledger  7c1e0aa [feat/csv-gzip]
 $ git -C ~/code/ledger status --short --branch
 ## feat/csv-gzip
 $ git -C ~/code/ledger stash list
@@ -64,4 +72,4 @@ $ gh repo view acme/ledger --json squashMergeAllowed,mergeCommitAllowed,rebaseMe
 {"squashMergeAllowed": true, "mergeCommitAllowed": false, "rebaseMergeAllowed": false}
 ```
 
-Any PR opened for `feat/csv-gzip` will get checks `test (3.12)` and `lint`, both passing, no review required, and it's retargeted to `main` automatically once #41 merges. Cleanup will find nothing left to flag.
+Checks on any PR in this repo, at any head (including after an update from `main`): `test (3.12)` pass, `lint` pass. A PR whose base branch is deleted is retargeted to `main`.

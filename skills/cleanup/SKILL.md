@@ -9,6 +9,8 @@ compatibility: Built for the Claude Code desktop app, where session-management t
 
 A repeatable closing checklist for the end of a session: reduce the odds of an orphaned background process, forgotten uncommitted work, or a collaborator left hanging, before the session goes idle or gets archived. Work through the steps in order — later steps assume the earlier ones already ran.
 
+Steps 2 and 4–6 use the desktop app's session tools (background tasks, other sessions, the session title, suggestion chips, archiving). When one of those tools doesn't exist, as in the CLI, skip that item and say so in the report; in the CLI, end with "ready to close" instead of offering to archive.
+
 ## 1. Working tree check
 
 For every git repository this session touched:
@@ -38,7 +40,9 @@ If this session created temporary or scratch files (a scratch workspace, `/tmp`,
 
 ## 4. Notify other sessions — only if there's a concrete reason
 
-Check for other active sessions or teammates. Send a message only when there's a specific, concrete reason another session needs to know something this one did — a shared branch you pushed to, a handoff already discussed in this conversation, a resource another session is known to be using. Don't message reflexively just because other sessions exist; staying silent is the right outcome most of the time. If genuinely unsure whether a heads-up is warranted, ask the user rather than deciding unilaterally.
+Check for other active Claude sessions. Send a message only when there's a specific, concrete reason another session needs to know something this one did — a handoff already discussed in this conversation, a branch another session is known to be building on, a resource another session is known to be using. Don't message reflexively just because other sessions exist; staying silent is the right outcome most of the time. If genuinely unsure whether a heads-up is warranted, ask the user rather than deciding unilaterally.
+
+Messages to people (teammates in chat, email, PR comments) are different: never send one from this checklist without the user confirming that exact message first.
 
 ## 5. Tidy loose ends
 
@@ -51,7 +55,7 @@ Summarize what you found and did in steps 1-5 — plainly, no padding: working-t
 
 Only archive after the user explicitly confirms in this step — never speculatively, even though invoking `/simplicity:cleanup` signals intent to wrap up; a session with live background work or an unresolved question from steps 1-5 shouldn't be offered for archival in the first place.
 
-**When `/simplicity:just-finish-it` runs this checklist**, stop after the summary: don't ask about archiving. `just-finish-it` owns that decision and continues from its own next step.
+**When `/simplicity:just-finish-it` runs this checklist**, it owns every decision that would come back to the user: wherever a step above says to ask, hand the item back to `just-finish-it` as pending instead of asking, send no messages to people, and stop after the summary without asking about archiving. `just-finish-it` continues from its own next step.
 
 ## Lifecycle
 

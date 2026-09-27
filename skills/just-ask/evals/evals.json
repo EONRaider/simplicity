@@ -26,12 +26,12 @@
       "id": 2,
       "prompt": "/simplicity:just-ask",
       "baseline_prompt": "Before you continue, ask me about anything that's still open.",
-      "expected_output": "States there are no open questions and stops. No AskUserQuestion payload, no invented questions.",
+      "expected_output": "States in one short line that there are no open questions and stops. No AskUserQuestion payload, no invented questions.",
       "files": [
         "evals/files/session-nothing-open.md"
       ],
       "expectations": [
-        "Replies exactly 'No open questions.'",
+        "Says briefly that there are no open questions",
         "Emits no AskUserQuestion payload"
       ]
     },
