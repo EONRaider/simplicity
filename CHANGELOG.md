@@ -5,6 +5,111 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.4.0] - 2026-09-28
+
+`just-finish-it` can now merge over the GitHub MCP server without the
+`governance` toolset. v0.3.0 left every PR pending there with "couldn't
+verify merge queue", which is the normal case in Claude Code on the web.
+This release also fixes a merge-queue check that missed queues set in
+classic branch protection, on both transports. No benchmark was re-run.
+The new and changed evals have been checked against synthetic good and bad
+responses only, not against live model runs.
+
+### Changed
+
+- **Merge queues on the MCP path.** The skill now works out the queue state
+  from what the default toolsets can read, and asks when they can't tell.
+  - `list_branches` gives the default branch's `protected` flag. When it's
+    `false`, the branch has no merge queue, so the skill merges without
+    asking.
+  - When the branch is protected and `repository_ruleset_read` is loaded,
+    a `merge_queue` rule still means pending, as before.
+  - Otherwise the skill asks once whether the repo uses a merge queue. It
+    asks in the same round as the merge-method question and recommends
+    neither answer. "Yes", or no answer, means pending. "No" means it
+    merges, with `expectedHeadSha` as before.
+  - If GitHub then refuses the merge because of a queue, the PR goes on
+    "Still to do" with "repo uses a merge queue: enqueue it yourself". The
+    skill doesn't retry.
+- **The question stays even though GitHub refuses queue bypasses.** GitHub
+  refuses a direct API merge into a queue-required branch, but only for a
+  caller who can't bypass the rule. For a caller who can, the same call
+  merges and skips the queue. No default MCP tool reports whether the caller
+  can bypass.
+- **Enabling `governance`.** SKILL.md now names the exact settings.
+  - Remote server: the header `X-MCP-Toolsets: default,governance`. To add
+    only the read tool, send `X-MCP-Toolsets: default` with
+    `X-MCP-Tools: repository_ruleset_read`.
+  - Local binary: `--toolsets default,governance`, or
+    `GITHUB_TOOLSETS=default,governance`.
+  - Loading it lets the skill confirm a ruleset queue without asking. It
+    can't rule out a classic-protection queue, so a protected branch with no
+    ruleset queue still gets the question.
+
+### Fixed
+
+- **Classic-protection merge queues.** The `gh` path checked
+  `GET /repos/{owner}/{repo}/rules/branches/{branch}`, which returns ruleset
+  rules only. A queue set in classic branch protection returned `[]`, so the
+  skill would have gone ahead and run `gh pr merge`. On a queue branch, that
+  command adds the PR to the queue instead of merging it. The check now
+  reads GraphQL `repository.mergeQueue(branch:)`, which is non-null for
+  either kind of queue. If that query fails, as it can behind a proxy that
+  pins GraphQL operations, the skill asks.
+- **Queued isn't merged.** If `gh pr merge` reports that it queued the PR,
+  the skill reports it as queued, not merged.
+
+### Evidence
+
+Measured on 2026-09-28 against a throwaway public org repo, as an org owner,
+with `PUT /repos/{owner}/{repo}/pulls/{n}/merge` and `sha` set. That is the
+call `merge_pull_request` makes (github-mcp-server v1.12.2,
+`pkg/github/pullrequests.go`).
+
+| Setup on `main` | `mergeable_state` | GraphQL `mergeQueue` | `protected` | Merge result |
+|---|---|---|---|---|
+| Repo ruleset `merge_queue`, empty bypass list | `clean` | non-null | `true` | 405 `Repository rule violations found` / `Changes must be made through the merge queue` |
+| Same ruleset, admin role bypass `always` | `clean` | non-null | `true` | 200, merged, queue skipped |
+| Classic "Require merge queue", admins not included | `clean` | non-null | `true` | 200, merged, queue skipped |
+| Same, admins included (`enforce_admins`) | `clean` | non-null | `true` | 405 `Changes must be made through the merge queue` |
+| No protection | `clean` | `null` | `false` | 200, merged |
+
+`rules/branches` returned `[]` under classic protection in both classic
+rows. An org-level ruleset with a `merge_queue` rule was rejected with a
+422. In GitHub's REST schema, for both github.com and GHEC, `merge_queue` is
+a valid rule only in repository rulesets, not org or enterprise ones.
+
+Sources:
+
+- GitHub Docs, [Merging a pull request with a merge queue](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue)
+  says administrators can merge directly, bypassing branch protections,
+  "if allowed by branch protection settings". It also says `gh pr merge`
+  adds the PR to the queue on a branch that requires one.
+- GitHub REST, [Get rules for a branch](https://docs.github.com/en/rest/repos/rules#get-rules-for-a-branch)
+  describes returning active ruleset rules. It doesn't mention classic
+  protection.
+- GitHub REST, [List branches](https://docs.github.com/en/rest/branches/branches#list-branches):
+  `protected` covers "branch protections or rulesets".
+- github-mcp-server v1.12.2: `governance` isn't a default toolset
+  (`pkg/github/tools.go`). The remote-server headers are in
+  `docs/remote-server.md`, and `--toolsets` and `GITHUB_TOOLSETS` are in the
+  README.
+- Claude Code docs, [cloud environments](https://code.claude.com/docs/en/cloud-environments)
+  say cloud sessions ship built-in GitHub tools. The docs don't say whether
+  their toolsets can be changed.
+
+### Evals
+
+- `session-mcp-no-gh.md` (eval 4) now returns `main` unprotected from
+  `list_branches`. A new check requires no merge-queue question.
+- `session-mcp-ask-queue.md` (eval 5): `main` is protected and there's no
+  `governance`. The run must ask before merging, recommend neither answer,
+  then merge with `expectedHeadSha`.
+- `session-mcp-queue-refused.md` (eval 6): the user says there's no queue,
+  but GitHub returns the 405. The run must call `merge_pull_request` once,
+  report the PR for the user to enqueue, and not archive.
+- The README's full-benchmark count goes from 420 to 480 runs.
+
 ## [v0.3.0] - 2026-09-27
 
 `just-finish-it` now works without `gh`, through the GitHub MCP server.
@@ -190,6 +295,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
+[v0.4.0]: https://github.com/EONRaider/simplicity/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/EONRaider/simplicity/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/EONRaider/simplicity/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/EONRaider/simplicity/releases/tag/v0.1.0
