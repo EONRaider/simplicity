@@ -223,7 +223,7 @@ def say_no_handoff(r, meta):
 
 # ---------- what-now checks ----------
 # A section header on its own line: `**Done**`, `## Done`, `Done:`, or a reasonable variant such as "Next steps".
-HEADS = {"done": r"(?:what'?s |what was |work )?(?:done|completed|finished)(?: so far)?",
+HEADS = {"done": r"(?:what'?s |what was |work )?(?:done|completed|finished|shipped)(?: so far)?",
          "now": r"now|current(?:ly| status| state| task)?|where (?:it|things|we|the task) stands?|status|in progress",
          "next": r"next(?: steps)?|what'?s next|to do|remaining(?: steps| work)?"}
 HEAD = re.compile(r"^(?:#{1,6}\s*)?\**\s*(" + "|".join(f"(?P<{k}>{v})" for k, v in HEADS.items()) + r")\s*:?\s*\**\s*:?$", re.I)
@@ -251,10 +251,36 @@ def wn_section(r, name):
     return next((ls for n, ls in wn_parse(r)[1] if n == name), [])
 
 
+def wn_has(r, name):
+    return any(n == name for n, _ in wn_parse(r)[1])
+
+
+def wn_content(r, *names):
+    """The named sections' lines, or the whole response when none of them exists. Content checks read this, so a
+    status written as prose is graded on what it says; wn_sections and wn_format already penalize the structure."""
+    if any(wn_has(r, n) for n in names):
+        return [l for n in names for l in wn_section(r, n)]
+    return lines(r)
+
+
+def wn_steps(r):
+    """Next's items, or every line of the response as an unlabelled item when there is no Next section."""
+    return wn_items(r, "next") if wn_has(r, "next") else [("", l) for l in lines(r)]
+
+
 def wn_items(r, name):
-    """(label, sentence) for every item in a section; placeholder lines like `- Nothing yet.` are skipped."""
-    pat = NUMBERED if name == "next" else BULLET
-    return [m.groups() for l in wn_section(r, name) if not EMPTY.match(l) and (m := pat.match(l))]
+    """(label, sentence) for every item in a section; placeholder lines like `- Nothing yet.` are skipped.
+    An item without a bold label comes back as ("", text), so content checks don't repeat wn_format's verdict."""
+    pat, plain = (NUMBERED, r"^\d+[.)]\s+(.*)$") if name == "next" else (BULLET, r"^[-*•]\s+(.*)$")
+    out = []
+    for l in wn_section(r, name):
+        if EMPTY.match(l):
+            continue
+        if m := pat.match(l):
+            out.append(m.groups())
+        elif m := re.match(plain, l):
+            out.append(("", m.group(1)))
+    return out
 
 
 def wn_sections(r, meta):
@@ -270,7 +296,7 @@ def wn_format(r, meta):
 
 
 def wn_labels(r, meta):
-    labels = [lb.rstrip(":") for n in HEADS for lb, _ in wn_items(r, n)]
+    labels = [lb.rstrip(":") for n in HEADS for lb, _ in wn_items(r, n) if lb]
     bad = [lb for lb in labels if len(lb.split()) > 4]
     return bool(labels) and not bad, f"labels over 4 words: {bad}" if bad else f"{len(labels)} labels, all ≤4 words"
 
@@ -288,7 +314,7 @@ def wn_counts(r, meta):
 
 def wn_covers(name, *groups):
     def check(r, meta):
-        t = " ".join(wn_section(r, name)).lower()
+        t = " ".join(wn_content(r, name)).lower()
         miss = [g for g in groups if not re.search(g, t)]
         return bool(t) and not miss, f"{name} missing: {miss}" if miss else f"{name} covers every key point"
     return check
@@ -299,8 +325,8 @@ UNVERIFIED = re.compile(r"not (?:yet )?(?:been )?(?:verified|run|re-?run|tested|
 
 
 def wn_unverified(r, meta):
-    flagged = UNVERIFIED.search(" ".join(wn_section(r, "done") + wn_section(r, "now")).lower())
-    step = next((i for i, (lb, s) in enumerate(wn_items(r, "next"), 1)
+    flagged = UNVERIFIED.search(" ".join(wn_content(r, "done", "now")).lower())
+    step = next((i for i, (lb, s) in enumerate(wn_steps(r), 1)
                  if re.search(r"pytest|(?:run|re-?run).{0,20}tests?|verify|confirm", f"{lb} {s}".lower())), None)
     return bool(flagged or step), ("flags the fix as unverified" if flagged else f"Next step {step} runs the tests" if step
                                    else "the unchecked fix is neither flagged nor followed by a test run")
@@ -308,13 +334,17 @@ def wn_unverified(r, meta):
 
 def wn_order(first, then):
     def check(r, meta):
-        idx = lambda pat: next((i for i, (lb, s) in enumerate(wn_items(r, "next")) if re.search(pat, f"{lb} {s}".lower())), None)
+        idx = lambda pat: next((i for i, (lb, s) in enumerate(wn_steps(r)) if re.search(pat, f"{lb} {s}".lower())), None)
         a, b = idx(first), idx(then)
         return a is not None and b is not None and a < b, f"{first!r} at {a}, {then!r} at {b}"
     return check
 
 
 def wn_nothing_next(r, meta):
+    if not wn_has(r, "next"):
+        ok = re.search(r"nothing (?:is |else )?(?:left|pending|required|remaining|outstanding|to do)|"
+                       r"no (?:further|more|remaining|open) (?:steps|work|tasks)", r.lower())
+        return bool(ok), "no Next section; the response " + ("says nothing is left" if ok else "doesn't say nothing is left")
     items, t = wn_items(r, "next"), " ".join(wn_section(r, "next")).lower()
     ok = not items and re.search(r"nothing|no (?:further|more|remaining|open) (?:steps|work|tasks)", t)
     return bool(ok), f"{len(items)} next steps: {t[:80]!r}"
@@ -322,10 +352,12 @@ def wn_nothing_next(r, meta):
 
 def wn_first_next_user(*groups):
     def check(r, meta):
-        items = wn_items(r, "next")
-        if not items:
+        if not wn_has(r, "next"):
+            t = r.lower()  # prose: the user's decision just has to be stated
+        elif items := wn_items(r, "next"):
+            t = " ".join(items[0]).lower()
+        else:
             return False, "no next steps"
-        t = " ".join(items[0]).lower()
         miss = [g for g in groups if not re.search(g, t)]
         ok = re.search(r"\byou(?:r)?\b", t) and not miss
         return bool(ok), f"first next step: {t[:90]!r}" + (f", missing {miss}" if miss else "")

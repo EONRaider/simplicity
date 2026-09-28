@@ -47,14 +47,14 @@ Write exactly three sections, with nothing before or after them:
 
 - **Done:** what the session finished, in the order it happened. 7 items or fewer. Merge small steps rather than drop important ones.
 - **Now:** where the current task stands, in 1–3 items. Name the blocker if there is one. Add an item for a parallel task or a background job that is still running.
-- **Next:** the steps that finish the current task, numbered in the order they should happen. 7 items or fewer.
+- **Next:** the steps that finish the current task, numbered in the order they should happen. 7 items or fewer. When the task is waiting on the user, their step comes first.
 
-Every item is a bold label of **at most 4 words**, an em dash, and **one** sentence.
+Every item in all three lists, Next steps included, is a bold label of **at most 4 words**, an em dash, and **one** sentence.
 
 - **Plain words.** Short sentences, no hedges, no filler.
 - **Keep what's actionable exact.** File paths, commands, PR numbers and names stay verbatim, in `code` where they are code.
-- **Say when a step is the user's.** Start its sentence with "You". If it's a decision, name the options and point to `/simplicity:just-ask` in the same sentence.
-- **Empty lists.** Nothing done yet: `- Nothing yet.` No current task: one Now item saying the work is finished or hasn't started. Nothing left: `Nothing left to do.` under Next. Never invent steps to fill a list.
+- **Say when a step is the user's.** A step is the user's only when it needs something only they can give: a decision, an approval, a credential. Start its sentence with "You". If it's a decision, name the options and point to `/simplicity:just-ask` in the same sentence. Everything else is yours to do next.
+- **Empty lists.** Nothing done yet: `- Nothing yet.` No current task: one labelled Now item such as `- **All finished** — Nothing you asked for is still open.` Nothing left: `Nothing left to do.` under Next. Never invent steps to fill a list.
 
 ## Lifecycle
 
