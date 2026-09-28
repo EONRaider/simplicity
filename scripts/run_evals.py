@@ -53,7 +53,7 @@ ACTIONS_NOTE = (
     "see them: log them as action blocks like everything else. Continue to your final report for the user "
     "without stopping to wait."
 )
-NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE}
+NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config", "--tools", "Skill"]
 
 
@@ -138,7 +138,7 @@ def run_one(job):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "just-finish-it", "cleanup"])
+    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

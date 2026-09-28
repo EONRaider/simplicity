@@ -221,6 +221,117 @@ def say_no_handoff(r, meta):
     return ok, "no open-decisions line" if ok else "spurious open-decisions line"
 
 
+# ---------- what-now checks ----------
+# A section header on its own line: `**Done**`, `## Done`, `Done:`, or a reasonable variant such as "Next steps".
+HEADS = {"done": r"(?:what'?s |what was |work )?(?:done|completed|finished)(?: so far)?",
+         "now": r"now|current(?:ly| status| state| task)?|where (?:it|things|we|the task) stands?|status|in progress",
+         "next": r"next(?: steps)?|what'?s next|to do|remaining(?: steps| work)?"}
+HEAD = re.compile(r"^(?:#{1,6}\s*)?\**\s*(" + "|".join(f"(?P<{k}>{v})" for k, v in HEADS.items()) + r")\s*:?\s*\**\s*:?$", re.I)
+WN_ITEM = r"\*\*([^*]+?)\*\*(?:\s*[—–:-]|(?<=:\*\*))\s*(\S.*)$"
+BULLET = re.compile(r"^[-*•]\s+" + WN_ITEM)
+NUMBERED = re.compile(r"^\d+[.)]\s+" + WN_ITEM)
+EMPTY = re.compile(r"^(?:[-*•]\s+|\d+[.)]\s+)?\**\s*nothing\b", re.I)
+
+
+def wn_parse(r):
+    """Split the response into (lines before the first header, [(section, lines)])."""
+    pre, secs = [], []
+    for l in lines(r):
+        m = HEAD.match(l.strip())
+        if m:
+            secs.append((next(k for k in HEADS if m.group(k)), []))
+        elif secs:
+            secs[-1][1].append(l.strip())
+        else:
+            pre.append(l)
+    return pre, secs
+
+
+def wn_section(r, name):
+    return next((ls for n, ls in wn_parse(r)[1] if n == name), [])
+
+
+def wn_items(r, name):
+    """(label, sentence) for every item in a section; placeholder lines like `- Nothing yet.` are skipped."""
+    pat = NUMBERED if name == "next" else BULLET
+    return [m.groups() for l in wn_section(r, name) if not EMPTY.match(l) and (m := pat.match(l))]
+
+
+def wn_sections(r, meta):
+    pre, secs = wn_parse(r)
+    names = [n for n, _ in secs]
+    return not pre and names == ["done", "now", "next"], f"sections {names}, {len(pre)} line(s) before the first"
+
+
+def wn_format(r, meta):
+    bad = [l[:50] for n, ls in wn_parse(r)[1] for l in ls
+           if not EMPTY.match(l) and not (NUMBERED if n == "next" else BULLET).match(l)]
+    return not bad, f"non-conforming lines: {bad}" if bad else "every item is a bold label, a dash and a sentence"
+
+
+def wn_labels(r, meta):
+    labels = [lb.rstrip(":") for n in HEADS for lb, _ in wn_items(r, n)]
+    bad = [lb for lb in labels if len(lb.split()) > 4]
+    return bool(labels) and not bad, f"labels over 4 words: {bad}" if bad else f"{len(labels)} labels, all ≤4 words"
+
+
+def wn_one_sentence(r, meta):
+    bad = [lb for n in HEADS for lb, s in wn_items(r, n) if sentences(s) > 1]
+    return not bad, f"multi-sentence items: {bad}" if bad else "one sentence per item"
+
+
+def wn_counts(r, meta):
+    n = {k: len(wn_section(r, k)) for k in HEADS}
+    ok = 1 <= n["done"] <= 7 and 1 <= n["now"] <= 3 and 1 <= n["next"] <= 7
+    return ok, f"done {n['done']}, now {n['now']}, next {n['next']}"
+
+
+def wn_covers(name, *groups):
+    def check(r, meta):
+        t = " ".join(wn_section(r, name)).lower()
+        miss = [g for g in groups if not re.search(g, t)]
+        return bool(t) and not miss, f"{name} missing: {miss}" if miss else f"{name} covers every key point"
+    return check
+
+
+UNVERIFIED = re.compile(r"not (?:yet )?(?:been )?(?:verified|run|re-?run|tested|checked|confirmed)|unverified|untested|"
+                        r"(?:hasn't|has not|haven't|have not|wasn't|was not) (?:been )?(?:re-?run|verified|tested|checked)")
+
+
+def wn_unverified(r, meta):
+    flagged = UNVERIFIED.search(" ".join(wn_section(r, "done") + wn_section(r, "now")).lower())
+    step = next((i for i, (lb, s) in enumerate(wn_items(r, "next"), 1)
+                 if re.search(r"pytest|(?:run|re-?run).{0,20}tests?|verify|confirm", f"{lb} {s}".lower())), None)
+    return bool(flagged or step), ("flags the fix as unverified" if flagged else f"Next step {step} runs the tests" if step
+                                   else "the unchecked fix is neither flagged nor followed by a test run")
+
+
+def wn_order(first, then):
+    def check(r, meta):
+        idx = lambda pat: next((i for i, (lb, s) in enumerate(wn_items(r, "next")) if re.search(pat, f"{lb} {s}".lower())), None)
+        a, b = idx(first), idx(then)
+        return a is not None and b is not None and a < b, f"{first!r} at {a}, {then!r} at {b}"
+    return check
+
+
+def wn_nothing_next(r, meta):
+    items, t = wn_items(r, "next"), " ".join(wn_section(r, "next")).lower()
+    ok = not items and re.search(r"nothing|no (?:further|more|remaining|open) (?:steps|work|tasks)", t)
+    return bool(ok), f"{len(items)} next steps: {t[:80]!r}"
+
+
+def wn_first_next_user(*groups):
+    def check(r, meta):
+        items = wn_items(r, "next")
+        if not items:
+            return False, "no next steps"
+        t = " ".join(items[0]).lower()
+        miss = [g for g in groups if not re.search(g, t)]
+        ok = re.search(r"\byou(?:r)?\b", t) and not miss
+        return bool(ok), f"first next step: {t[:90]!r}" + (f", missing {miss}" if miss else "")
+    return check
+
+
 # ---------- action helpers (just-finish-it, cleanup) ----------
 def action_blocks(r):
     """Every action the run took or logged, in order. Real tool calls that errored and ToolSearch lookups are skipped:
@@ -748,6 +859,7 @@ def cl_no_hook_edit(r, meta):
 
 
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
+WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
     ("just-ask", 1): [ask_one_payload, ask_max4, ask_headers, ask_recommended_first, ask_no_other, ask_descriptions,
                       not_asked(r"python", r"match statement"), not_asked(r"windows"), ask_round_or_assumptions],
@@ -760,6 +872,14 @@ CHECKS = {
     ("just-say-it", 2): SAY_COMMON + [say_covers(r"pip", r"docker", r"xdist|-n auto|parallel", r"shard|pytest-split|matrix"), say_no_handoff],
     ("just-say-it", 3): SAY_COMMON + [say_covers(r"adapter|storage", r"presigned", r"checksum|migrat"),
                                       say_names_decisions(r"s3|r2|provider", r"fallback|30.day|local")],
+    ("what-now", 1): WN_COMMON + [wn_covers("done", r"filter|tags? (?:query|param)", r"migration|index|0007"), wn_unverified,
+                                  wn_covers("now", r"test_filter_by_multiple_tags|multiple.tags|case.insensitiv|lower"),
+                                  wn_order(r"pytest|tests?\b", r"\bpr\b|pull request")],
+    ("what-now", 2): WN_COMMON + [wn_covers("done", r"#?212|merg", r"dot|date|pars"),
+                                  wn_covers("now", r"finish|done|complete|merged|nothing|no (?:current|active|open) task|shipped"),
+                                  wn_nothing_next],
+    ("what-now", 3): WN_COMMON + [wn_covers("now", r"decision|decide|waiting|wait on|blocked|your (?:call|choice)|choose|hold"),
+                                  wn_first_next_user(r"dead.?letter", r"drop|log")],
     ("just-finish-it", 1): [fin_push_gzip, fin_opens_pr, fin_base_first, fin_squash_no_admin, fin_leaves(39, "chore/ruff-0.6"),
                             fin_syncs, fin_archives_last, fin_no_pending],
     ("just-finish-it", 2): [fin_merges(88, "feat/rate-limit"), fin_not_merged(90, "fix/session-timeout"),
