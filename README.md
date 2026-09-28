@@ -1,11 +1,12 @@
 # simplicity
 
-Small Claude Code skills for long sessions. The three `just-*` commands never fire on their own. You call them when you need them. `cleanup` can also run when you ask Claude to wrap a session up.
+Small Claude Code skills for long sessions. The three `just-*` commands and `what-now` never fire on their own. You call them when you need them. `cleanup` can also run when you ask Claude to wrap a session up.
 
 | Command | What it does |
 |---|---|
 | `/simplicity:just-ask [focus]` | Sweeps the session (your messages, the plan, the task list and Claude's own earlier responses) for every question that's still open. It drops anything the repo or the conversation already answers, then asks the rest through `AskUserQuestion` in rounds of up to four. Every option has a recommendation and the reasoning behind it. |
 | `/simplicity:just-say-it [N \| topic]` | Re-states the last response, the last N responses, or everything said on a topic as a short numbered list: a bold label plus one plain sentence per item. It adds no preamble and no new information. If the content leaves decisions open, it ends by pointing you to `just-ask`. |
+| `/simplicity:what-now` | Takes stock of the session and gives three short lists: what's done, where the current task stands, and the next steps to finish it. Each item is a bold label plus one plain sentence. It makes no tool calls and counts work as done only when the session shows it done, so a fix that was never tested is marked unverified. A step that needs you, such as a decision, says so. |
 | `/simplicity:just-finish-it [PR numbers \| repo]` | Ships the session's work and closes it. It pushes this session's branches, opens any missing PRs, waits for CI, and merges the PRs whose checks all pass, base-first for stacked PRs. It then deletes the merged branches, remote and local, syncs your local repos, runs `cleanup`, and archives the session. It never uses `--admin`, auto-merge or force-push, never commits work for you, and never pushes to the default branch. If anything is still pending (red CI, a missing review, uncommitted work, unfinished tasks), or if you scoped the run, it skips archiving. It ends with a numbered "Still to do" list, each item with its next step. |
 | `/simplicity:cleanup` | An end-of-session checklist. It flags uncommitted, unpushed or stashed work without touching it, stops background tasks this session started, removes scratch files, and offers to archive the session. |
 
@@ -30,7 +31,7 @@ claude --plugin-dir /path/to/simplicity
 
 ## Evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 480 runs.
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 570 runs.
 
 ```bash
 python3 scripts/run_evals.py --iteration my-run --runs 5

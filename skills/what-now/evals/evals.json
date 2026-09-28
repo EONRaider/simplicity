@@ -1,0 +1,63 @@
+{
+  "skill_name": "what-now",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). The format checks (three sections, bold label plus dash, one sentence, list sizes) measure the output format this skill exists to produce; the baseline prompt asks for the same content but not the format, so part of this skill's delta is format compliance by design. The content checks (coverage, unverified work, step order, no invented steps, the user's decision first) measure whether the status itself is right. Section headers accept reasonable variants such as `## Next steps` or `Done:`.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:what-now",
+      "baseline_prompt": "Where are we? What's done, where does the task stand, and what's next?",
+      "expected_output": "Done: the tag filter with tests and the index migration, and the case-insensitive fix marked as not yet verified. Now: `test_filter_by_multiple_tags` last failed and the fix hasn't been re-run. Next: run the tests, then commit, push and open the PR. Each item a bold label plus one sentence.",
+      "files": [
+        "evals/files/session-mid-task.md"
+      ],
+      "expectations": [
+        "Three sections, Done, Now and Next, in that order, with nothing before them",
+        "Done and Now items are bullets, Next items are numbered, and each is a bold label, a dash and a sentence",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Done has 7 items or fewer, Now 1-3, Next 7 or fewer",
+        "Done covers the tag filter and the index migration",
+        "The case-insensitive fix is flagged as unverified, or running the tests is a Next step",
+        "Now names the failing multiple-tags test or the case-insensitive change",
+        "Next runs the tests before opening the PR"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:what-now",
+      "baseline_prompt": "Where are we? What's done, where does the task stand, and what's next?",
+      "expected_output": "Done: the dotted-date fix with a regression test, and PR #212 merged with the branch deleted and main synced. Now: the task is finished. Next: `Nothing left to do.` with no invented steps.",
+      "files": [
+        "evals/files/session-all-done.md"
+      ],
+      "expectations": [
+        "Three sections, Done, Now and Next, in that order, with nothing before them",
+        "Done and Now items are bullets, Next items are numbered, and each is a bold label, a dash and a sentence",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Done has 7 items or fewer, Now 1-3, Next 7 or fewer",
+        "Done covers the date-parsing fix and the merge of PR #212",
+        "Now says the task is finished",
+        "Next has no numbered steps and says there's nothing left"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:what-now",
+      "baseline_prompt": "Where are we? What's done, where does the task stand, and what's next?",
+      "expected_output": "Done: retry with backoff in `deliver_with_retry`, tests green, committed. Now: blocked on the user's decision about events whose retries all fail. Next: 1. the user picks dead-letter table or log-and-drop (pointing to /simplicity:just-ask), then the worker change and its tests.",
+      "files": [
+        "evals/files/session-blocked-on-user.md"
+      ],
+      "expectations": [
+        "Three sections, Done, Now and Next, in that order, with nothing before them",
+        "Done and Now items are bullets, Next items are numbered, and each is a bold label, a dash and a sentence",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Done has 7 items or fewer, Now 1-3, Next 7 or fewer",
+        "Now names the pending decision as the blocker",
+        "The first Next step is the user's and names both options (dead-letter table, log and drop)"
+      ]
+    }
+  ]
+}

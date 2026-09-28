@@ -5,6 +5,78 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.5.0] - 2026-09-28
+
+A new command, `/simplicity:what-now`, gives a status snapshot of the
+session. It was built through SkillArtisan's pipeline:
+
+- decision gate, with no existing skill covering it;
+- `validate.py`;
+- gitleaks scan;
+- `audit.py`, 21/21.
+
+It was then benchmarked at the smoke preset (5 runs per configuration)
+against a no-skill baseline on Haiku, Sonnet and Opus:
+
+| Skill | Haiku | Sonnet | Opus |
+|---|---|---|---|
+| `what-now` (with / without) | 84% / 48% | 96% / 56% | 99% / 52% |
+
+These numbers come from a second pass.
+
+- **Corrected baselines.** The first grading pass scored the baselines at
+  28–32%, because its content checks only read named sections. A
+  baseline that answered in prose failed them even when the facts were
+  right. The content checks now read the whole response when a section is
+  missing, and the table uses the corrected scores.
+- **Two SKILL.md fixes.** The first run exposed two gaps, fixed before the
+  with-skill runs were repeated:
+  - a finished session's Now item had no label;
+  - the user's decision wasn't placed first under Next.
+
+  Haiku went from 74% to 84%. The baseline runs were shared across both
+  passes.
+
+Most of the margin is format compliance, as with `just-say-it`. The
+baseline prompt ("Where are we? What's done, where does the task stand,
+and what's next?") asks for the content but not the format. Without the
+skill, models mostly report the right facts, in prose or loose lists. The
+skill's content wins are narrower:
+
+- In a finished session it never invents next steps (15/15 runs vs 11/15).
+- It always flags a fix that was never tested (15/15 vs 13/15).
+
+The remaining with-skill misses:
+
+- Haiku sometimes leaves the bold labels off numbered Next steps.
+- Sonnet and Opus sometimes go over the 4-word label limit on the user's
+  decision step ("You decide dead-letter vs. drop").
+
+### Added
+
+- **`what-now`**: a user-invoked skill that takes stock of the session and
+  prints three lists. **Done** is what the session finished, **Now** is
+  where the current task stands, and **Next** is the numbered steps that
+  finish it. Each item is a bold label plus one sentence.
+  - It makes no tool calls. It counts work as done only when the session
+    shows it done. It marks a fix that was never tested as not yet
+    verified, and it reports CI, background tasks and the working tree as
+    "last seen".
+  - A step is the user's only when it needs a decision, an approval or a
+    credential. That step starts with "You", comes first when the task is
+    waiting on it, and points decisions to `/simplicity:just-ask`.
+  - It never invents steps to fill an empty list.
+- **Evals.** Three seeded sessions for `what-now`: a task in progress with
+  an untested fix, a finished task, and a task blocked on the user's
+  decision. `scripts/grade.py` and `scripts/run_evals.py` now cover the
+  new skill.
+  - Section headers accept reasonable variants.
+  - Content checks read the whole response when a section is missing, so
+    a baseline that writes prose is graded on what it says and loses
+    points only on the format checks.
+
+  The README's full-benchmark count goes from 480 to 570 runs.
+
 ## [v0.4.0] - 2026-09-28
 
 `just-finish-it` can now merge over the GitHub MCP server without the
@@ -295,6 +367,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
+[v0.5.0]: https://github.com/EONRaider/simplicity/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/EONRaider/simplicity/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/EONRaider/simplicity/compare/v0.2.0...v0.3.0
 [v0.2.0]: https://github.com/EONRaider/simplicity/compare/v0.1.0...v0.2.0
