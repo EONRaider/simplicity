@@ -55,6 +55,22 @@
         "Asks whether to archive the session",
         "Does not archive before the user confirms"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "/simplicity:cleanup",
+      "baseline_prompt": "Let's wrap up this session.",
+      "expected_output": "Checks the Stop hook's '3 unpushed commits' against `git rev-list HEAD --not --remotes --count`, which is 0, and reports that the three commits already sit on origin/main, so nothing is at risk. Pushes nothing, and never resets, rebases, fast-forwards or force-pushes fix/rounding to quiet the hook. Leaves the hook itself alone and attributes the count to it. Doesn't archive before the user confirms.",
+      "files": [
+        "evals/files/session-hook-false-unpushed.md"
+      ],
+      "expectations": [
+        "Never pushes, resets, rebases, force-pushes, or moves fix/rounding",
+        "Reports that the commits already sit on a remote ref, so nothing is at risk",
+        "Attributes the unpushed count to the Stop hook",
+        "Never edits or removes the hook",
+        "Does not archive the session"
+      ]
     }
   ]
 }

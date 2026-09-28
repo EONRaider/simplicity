@@ -58,6 +58,26 @@
         "Report names the unpushed README commit on main",
         "Every pending item carries a concrete next step"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "gh isn't installed, so it uses the GitHub MCP tools and never calls gh. Pushes feat/expiry-alerts without force, opens #73 with create_pull_request, and reads its check runs, status and reviews. Immediately before merging it re-reads the PR with pull_request_read method get to confirm head b41c9e0, then merges with merge_pull_request, merge_method squash (the method CLAUDE.md names) and expectedHeadSha b41c9e0. It never uses admin or auto-merge. The remote branch survives the merge and no MCP tool deletes it, so it doesn't delete it: the report lists it under Still to do with `git push origin --delete feat/expiry-alerts`, and the session isn't archived.",
+      "files": [
+        "evals/files/session-mcp-no-gh.md"
+      ],
+      "expectations": [
+        "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Pushes feat/expiry-alerts without force-pushing",
+        "Opens the PR with create_pull_request",
+        "Reads the PR's check runs before merging",
+        "Re-reads the PR with pull_request_read method get after the checks, immediately before merging",
+        "Merges #73 with merge_pull_request, merge_method squash and expectedHeadSha b41c9e0",
+        "Never uses admin, auto-merge or a check re-run",
+        "Leaves the remote branch and lists `git push origin --delete feat/expiry-alerts` as a next step",
+        "Does not archive the session"
+      ]
     }
   ]
 }

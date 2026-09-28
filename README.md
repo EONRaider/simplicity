@@ -25,12 +25,12 @@ claude --plugin-dir /path/to/simplicity
 ## Notes
 
 - `AskUserQuestion` exists only in Claude Code. On other surfaces, `just-ask` falls back to a numbered markdown list with the same recommendations.
-- `just-finish-it` needs `git` and an authenticated `gh`. Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
+- `just-finish-it` needs `git`, plus an authenticated `gh` or the GitHub MCP server's tools (cloud sessions often have only the MCP server). Merging on the MCP path needs the server's `governance` toolset, because that's where the merge-queue check lives. Without it, PRs stay pending. The MCP server has no branch-delete tool, so a merged branch the repo doesn't auto-delete goes on the "Still to do" list. Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
 - `just-say-it` only compresses. If you want terser output in every session, set an output style or a CLAUDE.md instruction instead.
 
 ## Evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 360 runs.
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 420 runs.
 
 ```bash
 python3 scripts/run_evals.py --iteration my-run --runs 5
