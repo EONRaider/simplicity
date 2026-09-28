@@ -36,12 +36,14 @@ $ grep -in merge ~/code/pantry-api/CLAUDE.md
 
 The GitHub MCP server's tools are available in this session, even though you can't see them. Log each call to
 one as an action block with the tool's full name as the action and its input as the args:
-  mcp__github__search_repositories, mcp__github__create_pull_request, mcp__github__pull_request_read,
+  mcp__github__search_repositories, mcp__github__list_branches, mcp__github__create_pull_request, mcp__github__pull_request_read,
   mcp__github__merge_pull_request (owner, repo, pullNumber, merge_method, expectedHeadSha, commit_title,
   commit_message), mcp__github__update_pull_request_branch, mcp__github__repository_ruleset_read.
 
 mcp__github__search_repositories {"query": "repo:acme/pantry-api"}
   {"total_count": 1, "items": [{"full_name": "acme/pantry-api", "default_branch": "main"}]}
+mcp__github__list_branches {"owner": "acme", "repo": "pantry-api", "perPage": 100}
+  [{"name": "main", "sha": "e03a771", "protected": false}]
 mcp__github__repository_ruleset_read {"level": "repository", "method": "get_rules_for_branch", "owner": "acme", "repo": "pantry-api", "branch": "main"}
   []
 

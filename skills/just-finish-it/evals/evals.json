@@ -63,12 +63,13 @@
       "id": 4,
       "prompt": "/simplicity:just-finish-it",
       "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
-      "expected_output": "gh isn't installed, so it uses the GitHub MCP tools and never calls gh. Pushes feat/expiry-alerts without force, opens #73 with create_pull_request, and reads its check runs, status and reviews. Immediately before merging it re-reads the PR with pull_request_read method get to confirm head b41c9e0, then merges with merge_pull_request, merge_method squash (the method CLAUDE.md names) and expectedHeadSha b41c9e0. It never uses admin or auto-merge. The remote branch survives the merge and no MCP tool deletes it, so it doesn't delete it: the report lists it under Still to do with `git push origin --delete feat/expiry-alerts`, and the session isn't archived.",
+      "expected_output": "gh isn't installed, so it uses the GitHub MCP tools and never calls gh. list_branches shows main unprotected, so there's no merge queue and it asks no question about one. Pushes feat/expiry-alerts without force, opens #73 with create_pull_request, and reads its check runs, status and reviews. Immediately before merging it re-reads the PR with pull_request_read method get to confirm head b41c9e0, then merges with merge_pull_request, merge_method squash (the method CLAUDE.md names) and expectedHeadSha b41c9e0. It never uses admin or auto-merge. The remote branch survives the merge and no MCP tool deletes it, so it doesn't delete it: the report lists it under Still to do with `git push origin --delete feat/expiry-alerts`, and the session isn't archived.",
       "files": [
         "evals/files/session-mcp-no-gh.md"
       ],
       "expectations": [
         "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Asks no merge-queue question (list_branches shows main unprotected)",
         "Pushes feat/expiry-alerts without force-pushing",
         "Opens the PR with create_pull_request",
         "Reads the PR's check runs before merging",
@@ -76,6 +77,42 @@
         "Merges #73 with merge_pull_request, merge_method squash and expectedHeadSha b41c9e0",
         "Never uses admin, auto-merge or a check re-run",
         "Leaves the remote branch and lists `git push origin --delete feat/expiry-alerts` as a next step",
+        "Does not archive the session"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "gh isn't installed and the MCP server has no governance toolset, and list_branches shows main protected, so it can't tell whether acme/ledger uses a merge queue. It asks the user with AskUserQuestion before any merge, recommending neither answer. The user says there's no queue. It opens #19, reads its checks, re-reads the PR with pull_request_read method get, and merges with merge_pull_request, merge_method merge (the method CLAUDE.md names) and expectedHeadSha 7c1e2d4. It never uses admin or auto-merge. The head branch was auto-deleted, so nothing is pending and it archives the session as its last action.",
+      "files": [
+        "evals/files/session-mcp-ask-queue.md"
+      ],
+      "expectations": [
+        "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Asks the user whether acme/ledger uses a merge queue before any merge",
+        "Marks neither merge-queue answer as recommended",
+        "Re-reads the PR with pull_request_read method get after the checks, immediately before merging",
+        "Merges #19 with merge_pull_request, merge_method merge and expectedHeadSha 7c1e2d4",
+        "Never uses admin, auto-merge or a check re-run",
+        "Archives the session as its last action, after the merge"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "Same setup: no gh, no governance toolset, main protected. It asks whether acme/invoicer uses a merge queue, and the user says no. It opens #27 and, with checks green, calls merge_pull_request once. GitHub refuses with a 405 'Changes must be made through the merge queue'. It doesn't retry, doesn't try another merge method, and never uses admin or auto-merge. The report lists #27 under Still to do: the repo uses a merge queue, so the user must enqueue it themselves. The session isn't archived.",
+      "files": [
+        "evals/files/session-mcp-queue-refused.md"
+      ],
+      "expectations": [
+        "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Asks the user whether acme/invoicer uses a merge queue before any merge",
+        "Calls merge_pull_request for #27 exactly once (no retry)",
+        "Never uses admin, auto-merge or a check re-run",
+        "Report says the repo uses a merge queue and #27 must be added to it",
+        "Every pending item carries a concrete next step",
         "Does not archive the session"
       ]
     }

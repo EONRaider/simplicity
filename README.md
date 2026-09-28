@@ -25,12 +25,12 @@ claude --plugin-dir /path/to/simplicity
 ## Notes
 
 - `AskUserQuestion` exists only in Claude Code. On other surfaces, `just-ask` falls back to a numbered markdown list with the same recommendations.
-- `just-finish-it` needs `git`, plus an authenticated `gh` or the GitHub MCP server's tools (cloud sessions often have only the MCP server). Merging on the MCP path needs the server's `governance` toolset, because that's where the merge-queue check lives. Without it, PRs stay pending. The MCP server has no branch-delete tool, so a merged branch the repo doesn't auto-delete goes on the "Still to do" list. Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
+- `just-finish-it` needs `git`, plus an authenticated `gh` or the GitHub MCP server's tools (cloud sessions often have only the MCP server). On the MCP path it can't always see a merge queue. If the default branch is protected and the server's `governance` toolset doesn't show one, it asks you whether the repo uses a merge queue, once per run. If GitHub then refuses the merge because of a queue, the PR goes on "Still to do" for you to enqueue. The MCP server has no branch-delete tool, so a merged branch the repo doesn't auto-delete goes on the "Still to do" list. Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
 - `just-say-it` only compresses. If you want terser output in every session, set an output style or a CLAUDE.md instruction instead.
 
 ## Evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 420 runs.
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. The default is 480 runs.
 
 ```bash
 python3 scripts/run_evals.py --iteration my-run --runs 5
