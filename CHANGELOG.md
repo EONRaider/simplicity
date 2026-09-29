@@ -5,6 +5,16 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Fixed
+
+- **README.** It said the eval harness defaults to 570 runs. `--runs`
+  defaults to 1 (114 runs); 570 is the `--runs 5` smoke preset. The
+  README now also gives `just-finish-it`'s argument hint as SKILL.md does,
+  says what `cleanup` skips in the CLI, and points to `cleanup`'s trigger
+  set.
+
 ## [v0.5.0] - 2026-09-28
 
 A new command, `/simplicity:what-now`, gives a status snapshot of the
@@ -367,6 +377,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.5.0...HEAD
 [v0.5.0]: https://github.com/EONRaider/simplicity/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/EONRaider/simplicity/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/EONRaider/simplicity/compare/v0.2.0...v0.3.0
