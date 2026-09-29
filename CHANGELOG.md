@@ -5,15 +5,105 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [Unreleased]
+## [v0.6.0] - 2026-09-29
+
+`just-finish-it` stops asking about a merge queue when the project already
+answers it. It also merges only on check, status and review reads it made
+itself in step 4.
+
+### Changed
+
+- **`just-finish-it` reads a stated merge-queue answer.** Sometimes its check
+  can't settle whether the default branch uses a merge queue. That happens
+  on the MCP transport with a protected branch, or when the `gh` GraphQL
+  query fails. It now takes the answer from the project's CLAUDE.md or
+  CONTRIBUTING, the way it already reads the merge method, and asks
+  nothing.
+  - A stated "no" counts exactly as the user's "no". GitHub's 405 refusal
+    of a direct merge into a queue is still the backstop.
+  - A check that finds a queue wins over what the project states.
+  - With no statement, it asks, as before.
+
+### Added
+
+- **Evals.** Two seeded MCP sessions:
+  - CLAUDE.md says there's no queue: no question, and the PR merges;
+  - CLAUDE.md says there's no queue, but a ruleset shows one: no merge,
+    and the PR goes on "Still to do".
+- **`scripts/run_evals.py --configs`** runs only the configurations named,
+  for example `--configs with_skill`.
+
+### Evidence
+
+All runs are with-skill only, and all are graded with this release's
+grader. No baseline was run. v0.4.0 never ran evals 5 and 6 live, so
+there's nothing to compare against.
+
+**First pass: 3 runs per model on evals 4–8 (30 runs), before the
+check-read fix below.**
+
+| Eval | Sonnet | Opus |
+|---|---|---|
+| 4: unprotected, no question | 30/30 | 28/30 |
+| 5: protected, asks, merges | 23/24 | 22/24 |
+| 6: protected, asks, 405 | 20/21 | 19/21 |
+| 7: CLAUDE.md says no queue | 17/21 | 21/21 |
+| 8: CLAUDE.md says no, ruleset says yes | 20/21 | 21/21 |
+
+Totals: 221/234 expectations (94.4%). The two new behaviors held in every
+run:
+
+- eval 7 asked no merge-queue question (6/6);
+- eval 8 never merged #44 (6/6).
+
+The misses:
+
+- **Malformed questions.** Two Opus runs of evals 5 and 6 did ask, but
+  wrote `AskUserQuestion` JSON with a brace missing, so the grader missed
+  the question.
+- **A skipped question.** One Sonnet run of eval 6 treated the seed's
+  scripted answer as already given, and never asked.
+- **Skipped reads.** One Sonnet run of eval 7 merged without calling
+  `get_check_runs`, `get_status` or `get_reviews`. It took the results
+  from the seed's preloaded output. This led to the check-read fix below.
+- **Other misses.** Three Sonnet runs didn't archive, one of them the
+  eval 7 run above. One eval 8 run left a pending item without a next
+  step. Two Opus runs of eval 4 did push without force, but logged it as a
+  `git` action whose args start with `git`, a form the grader doesn't
+  parse.
+
+**After the check-read fix: 5 Sonnet runs each on evals 4, 5 and 7 (15
+runs).** The score is 122/125 expectations. Every run read check runs,
+status and reviews before merging (15/15, against 23/24 merging runs in
+the first pass).
+
+- Fifteen runs are too few to show the skip rate changed. They show only
+  that it didn't recur.
+- Two eval 7 runs didn't archive.
+- One eval 4 run wrote the remote-branch delete it was meant to leave to
+  the user as an action block in its report.
 
 ### Fixed
 
+- **`just-finish-it` merges only on reads made in step 4.** Step 4 now
+  says each merge condition comes only from reads made in that step, after
+  the recorded push. A result seen earlier in the session, or one the
+  model expects a call to return, doesn't count. On the MCP path,
+  `get_check_runs`, `get_status` and `get_reviews` are all required before
+  `merge_pull_request`.
+- **Grader.**
+  - A new check requires those three reads before the merge, on evals 5
+    and 7.
+  - A fenced block holding several JSON actions, one per line, used to
+    be dropped whole. Now each action counts.
+  - Re-grading the 384 stored `just-finish-it` and `cleanup` runs from
+    earlier releases changed 3 of them, all upward. Each had several
+    actions in one block.
 - **README.** It said the eval harness defaults to 570 runs. `--runs`
-  defaults to 1 (114 runs); 570 is the `--runs 5` smoke preset. The
-  README now also gives `just-finish-it`'s argument hint as SKILL.md does,
-  says what `cleanup` skips in the CLI, and points to `cleanup`'s trigger
-  set.
+  defaults to 1 (126 runs with this release's two new evals); 630 is the
+  `--runs 5` smoke preset. The README now also gives `just-finish-it`'s
+  argument hint as SKILL.md does, says what `cleanup` skips in the CLI,
+  and points to `cleanup`'s trigger set.
 
 ## [v0.5.0] - 2026-09-28
 
@@ -378,6 +468,7 @@ harness.
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
 [Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.5.0...HEAD
+[v0.6.0]: https://github.com/EONRaider/simplicity/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/EONRaider/simplicity/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/EONRaider/simplicity/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/EONRaider/simplicity/compare/v0.2.0...v0.3.0

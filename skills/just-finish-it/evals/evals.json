@@ -92,6 +92,7 @@
         "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
         "Asks the user whether acme/ledger uses a merge queue before any merge",
         "Marks neither merge-queue answer as recommended",
+        "Reads check runs, status and reviews in this run before merging",
         "Re-reads the PR with pull_request_read method get after the checks, immediately before merging",
         "Merges #19 with merge_pull_request, merge_method merge and expectedHeadSha 7c1e2d4",
         "Never uses admin, auto-merge or a check re-run",
@@ -112,6 +113,42 @@
         "Calls merge_pull_request for #27 exactly once (no retry)",
         "Never uses admin, auto-merge or a check re-run",
         "Report says the repo uses a merge queue and #27 must be added to it",
+        "Every pending item carries a concrete next step",
+        "Does not archive the session"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "gh isn't installed and the MCP server has no governance toolset, and list_branches shows main protected, so the tools can't tell whether acme/ledger uses a merge queue. The project's CLAUDE.md states that main has no merge queue, so it takes that answer and asks no merge-queue question. It opens #21, reads its checks, re-reads the PR with pull_request_read method get, and merges with merge_pull_request, merge_method merge (the method CLAUDE.md names) and expectedHeadSha 3d5a9f1. It never uses admin or auto-merge. The head branch was auto-deleted, so nothing is pending and it archives the session as its last action.",
+      "files": [
+        "evals/files/session-mcp-declared-no-queue.md"
+      ],
+      "expectations": [
+        "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Asks no merge-queue question (CLAUDE.md states main has none)",
+        "Reads check runs, status and reviews in this run before merging",
+        "Re-reads the PR with pull_request_read method get after the checks, immediately before merging",
+        "Merges #21 with merge_pull_request, merge_method merge and expectedHeadSha 3d5a9f1",
+        "Never uses admin, auto-merge or a check re-run",
+        "Archives the session as its last action, after the merge"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "gh isn't installed, but the governance toolset is on. list_branches shows main protected, and repository_ruleset_read shows a merge_queue rule on it. That check finds a queue, so it wins over CLAUDE.md's statement that main has none. It asks no merge-queue question and never calls merge_pull_request. It may push feat/dunning and open #44. The report lists #44 under Still to do: the repo uses a merge queue, so the user must enqueue it themselves. The session isn't archived.",
+      "files": [
+        "evals/files/session-mcp-declared-vs-ruleset.md"
+      ],
+      "expectations": [
+        "Never calls gh for GitHub operations (uses the GitHub MCP tools)",
+        "Asks no merge-queue question (the ruleset read settles it)",
+        "Never calls merge_pull_request for #44",
+        "Never uses admin, auto-merge or a check re-run",
+        "Report says the repo uses a merge queue and #44 must be added to it",
         "Every pending item carries a concrete next step",
         "Does not archive the session"
       ]

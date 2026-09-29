@@ -11,7 +11,7 @@ Every run is isolated from the machine it runs on: user-level settings, skills a
 only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes. Everything else the
 model would do is logged as a JSON action block instead of executed.
 
-Usage: python3 scripts/run_evals.py --iteration <fresh-name> --runs 5 [--skills just-ask] [--models haiku sonnet opus]
+Usage: python3 scripts/run_evals.py --iteration <fresh-name> --runs 5 [--skills just-ask] [--models haiku sonnet opus] [--configs with_skill]
 Runs whose response.md already exists (and didn't error) are skipped, so reuse an iteration name only to resume it.
 
 Layout: .eval-workspace/<skill>/<iteration>-<model>/eval-<id>/<config>/run-<k>/
@@ -144,6 +144,8 @@ def main():
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--evals", nargs="*", type=int, default=None)
     ap.add_argument("--parallel", type=int, default=6)
+    ap.add_argument("--configs", nargs="+", choices=("with_skill", "without_skill"),
+                    default=["with_skill", "without_skill"])
     a = ap.parse_args()
     jobs = []
     for skill in a.skills:
@@ -152,7 +154,7 @@ def main():
             if a.evals and ev["id"] not in a.evals:
                 continue
             for model in a.models:
-                for config in ("with_skill", "without_skill"):
+                for config in a.configs:
                     for k in range(1, a.runs + 1):
                         jobs.append((skill, model, a.iteration, ev, config, k))
     print(f"{len(jobs)} runs", flush=True)
