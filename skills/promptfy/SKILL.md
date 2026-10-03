@@ -3,6 +3,7 @@ name: promptfy
 description: Rewrites a prompt into a stronger one before the user sends it, using the most capable model and the session's real context, then prints it in a code block and stops. It never runs the prompt. With no argument it rewrites the last prompt the user typed in this session. Invoked by the user as /simplicity:promptfy [prompt].
 disable-model-invocation: true
 argument-hint: "[prompt]"
+allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/last-prompt.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)
 compatibility: Claude Code (uses the Claude Code-only disable-model-invocation and argument-hint fields, a subagent and AskUserQuestion). The no-argument case needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
 ---
@@ -58,6 +59,16 @@ portable" in the packet and move on.
 
 ## 3. Hand it to a stronger model
 
+**First decide whether the prompt needs a rewrite at all.** A prompt is already tight when
+the packet confirmed every path it names, it says what done looks like, and it names its
+constraints. When it is, skip the subagent. Say in one line that the prompt is already
+tight, print it back in a fenced code block exactly as typed, and stop. Change only what
+the packet proved wrong, such as a path that doesn't exist or a count that is off, and
+list only those changes. Do not paste in file contents, restate what the prompt already
+says, or add constraints it never asked for. A longer prompt is not a stronger one.
+
+Otherwise:
+
 One subagent. **Always pass `model` explicitly.** Never omit it and never let the
 subagent inherit the session's model, or the rewrite runs at whatever the session
 happens to be set to, which on a cheap session is worse than not rewriting at all. Use
@@ -111,7 +122,7 @@ Two exceptions:
 
 - The rewrite came back with OPEN QUESTIONS: ask them with AskUserQuestion as multiple
   choice. Max 4 per popup, so use a second popup for the rest. Put the recommended option
-  first. Then fold the answers into the prompt and reprint the final version in a fenced
+  first and end its label with ` (Recommended)`. Then fold the answers into the prompt and reprint the final version in a fenced
   code block, with one line per answer saying what it changed. Still never run it.
 - The rewrite came back materially different in intent from what was typed: say so
   plainly in one line, and show the original alongside it.
@@ -123,7 +134,7 @@ written anywhere.
 
 ## Lifecycle
 
-**Encoded-preference, timelessness 7/10, last verified against claude-opus-5 (2026-10).** "Rewrite it, print it, never run it" is a fixed workflow preference, so better models don't make it obsolete. It scores 7 for two reasons. The no-argument case reads Claude Code's transcript format, which isn't a documented interface, so a CLI update can break `last-prompt.py`. And the gain from handing the rewrite to a stronger model shrinks as the session's own model improves. Re-check the helper after each Claude Code update, and compare the rewrite against a plain "improve this prompt" when a new model ships. The check was one run per eval, and it wasn't clean: Opus passed 11 of 13 expectations with the skill, and all three models together 31 of 39, against 19 of 39 without it. No model ran the prompt it was given. Every model expanded a prompt that was already tight instead of returning it close to unchanged.
+**Encoded-preference, timelessness 7/10, last verified against claude-opus-5 (2026-10).** "Rewrite it, print it, never run it" is a fixed workflow preference, so better models don't make it obsolete. It scores 7 for two reasons. The no-argument case reads Claude Code's transcript format, which isn't a documented interface, so a CLI update can break `last-prompt.py`. And the gain from handing the rewrite to a stronger model shrinks as the session's own model improves. Re-check the helper after each Claude Code update, and compare the rewrite against a plain "improve this prompt" when a new model ships. The check was one run per eval, with the skill: Opus and Sonnet each passed 13 of 13 expectations and Haiku 11 of 13. No model ran the prompt it was given, and all three returned an already tight prompt as typed. Haiku's two misses: it quoted the project's notes in a blockquote, and it wrote both footers into the prompt instead of asking which one was meant.
 
 ## Credits
 
@@ -132,4 +143,6 @@ Adapted from `ultra-prompt` by [voidharbor](https://github.com/voidharbor), [voi
 - The command is now a skill: `commands/ultra-prompt.md` became this `SKILL.md`, and the helper moved to `scripts/` beside it.
 - It is renamed from `ultra-prompt` to `promptfy`, and invoked as `/simplicity:promptfy`.
 - It is user-invoked only (`disable-model-invocation: true`).
+- The text adds two things upstream doesn't have: a check, before the subagent, that returns an already tight prompt as typed, and the ` (Recommended)` label on the first option of each question.
+- `allowed-tools` lets the skill run its own helper script without a permission prompt.
 - The helper script was hardened with the same behavior, except that it now skips `/promptfy` and `/simplicity:promptfy` instead of upstream's own commands: pathlib, type hints, docstrings, errors on stderr with a nonzero exit, and unit tests.
