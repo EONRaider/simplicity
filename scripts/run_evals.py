@@ -53,7 +53,16 @@ ACTIONS_NOTE = (
     "see them: log them as action blocks like everything else. Continue to your final report for the user "
     "without stopping to wait."
 )
-NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE}
+PROMPTFY_NOTE = ACTIONS_NOTE + (
+    " Two more rules apply here. First, a subagent can't run either: log the call as an action block whose args "
+    "hold its full tool input, including its `model` and the brief, then write the subagent's result yourself, "
+    "following the brief you gave it, and carry on as if it had come back. Second, AskUserQuestion can't render: "
+    "when you would call it, first finish everything that comes before the call, then output its exact tool input "
+    "as one fenced ```json block per call (an object with a `questions` array), and stop there to wait for the "
+    "answers. That is the only point at which you stop."
+)
+NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
+         "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config", "--tools", "Skill"]
 
 
@@ -138,7 +147,8 @@ def run_one(job):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup"])
+    ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
+                                                 "rename-session", "promptfy"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)
