@@ -5,6 +5,58 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.7.2] - 2026-10-03
+
+`rename-session` now works in the desktop app, and its titles are no
+longer in ALL CAPS.
+
+### Fixed
+
+- **`rename-session` did nothing visible in the desktop app.** The app
+  keeps its own title for each session and never reads the `custom-title`
+  records the helper writes, so the helper reported success while the
+  sidebar and header kept the old title. The skill now renames through the
+  app's session title tool when one exists, and runs the helper only
+  elsewhere. Found by running the skill on the session that released it.
+
+### Changed
+
+- **Titles are in sentence case**, like the app's own: "Checkout retry
+  bug", not "CHECKOUT RETRY BUG". Names and acronyms keep their own
+  capitals. This departs from voidharbor's ALL CAPS rule; the skill's
+  Credits section says so.
+- The evals and `scripts/grade.py` follow: a title must not be all caps,
+  and a passed topic is matched in any capitalisation except ALL CAPS.
+
+### Evidence
+
+- **In the desktop app, one session:** the helper wrote both records and
+  the app's title didn't change. The session title tool changed it at
+  once, as the app's own session metadata confirmed.
+- **Evals:** the two `rename-session` evals, once per model, with and
+  without the skill (12 runs, `--runs 1`, on claude-haiku-4-5,
+  claude-sonnet-5 and claude-opus-5), graded with this release's grader.
+
+| Config | Haiku | Sonnet | Opus | Total |
+|---|---|---|---|---|
+| with skill | 5/6 | 6/6 | 6/6 | 17/18 |
+| without | 4/6 | 4/6 | 5/6 | 13/18 |
+
+  Every with-skill title was 2 to 5 words in sentence case. Haiku's miss:
+  its closing line didn't name the new title. Without the skill, no model
+  kept the title to 5 words. The gap to the baseline is smaller than in
+  v0.7.0 because models don't write ALL CAPS titles unprompted, and the
+  old grader failed them for that.
+
+In the eval harness the session tools are only described, not visible,
+and the with-skill runs split: 2 of 6 logged the session title tool and 4
+ran the helper. The evals count either as a rename, so they don't show
+that the skill picks the tool in the app.
+
+Not checked: the fixed skill end to end in the desktop app. It loads only
+after a restart, so the tool path was exercised by hand, not through the
+skill. Whether the tool exists in cloud sessions is also unverified.
+
 ## [v0.7.1] - 2026-10-03
 
 Fixes what the v0.7.0 benchmark found in `promptfy`, and stops both new
@@ -627,7 +679,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.2...HEAD
+[v0.7.2]: https://github.com/EONRaider/simplicity/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/EONRaider/simplicity/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/EONRaider/simplicity/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/EONRaider/simplicity/compare/v0.5.0...v0.6.0
