@@ -15,6 +15,7 @@ Users install simplicity through the `eonraider` marketplace (`EONRaider/claude-
    Don't use `claude plugin tag` for this. It creates `simplicity--vX.Y.Z`, but the CHANGELOG and the marketplace use `vX.Y.Z`.
 5. **Update the marketplace.** In `EONRaider/claude-plugins`, edit the `simplicity` entry in `.claude-plugin/marketplace.json`:
    - set `ref` to the new tag and `sha` to the tagged commit;
+   - set `version` to the new version, matching `plugin.json`;
    - refresh `description` and `keywords` so they cover every skill;
    - update the simplicity line in that repo's README.
 
