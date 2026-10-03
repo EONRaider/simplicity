@@ -5,6 +5,116 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.7.0] - 2026-10-03
+
+Two new commands, both adapted from
+[voidharbor/claude-plugins](https://github.com/voidharbor/claude-plugins/tree/397b2705f8f83958536721ddc557331bd4d2737b) (MIT): `/simplicity:rename-session`
+names a session after what it was actually about, and `/simplicity:promptfy`
+rewrites a prompt into a stronger one without running it.
+
+### Added
+
+- **`/simplicity:rename-session [topic]`.** Renames the current session to
+  a 2 to 5 word ALL CAPS title that names where the work ended up, not the
+  first message. A topic passed as an argument is used instead.
+- **`/simplicity:promptfy [prompt]`.** Rewrites a prompt and prints it in a
+  code block with a short "what changed" list. It never runs the prompt.
+  - It checks the paths the prompt names against the repo first.
+  - One subagent on the most capable model does the rewrite.
+  - Anything it couldn't verify comes back through `AskUserQuestion`.
+  - With no argument it rewrites the last prompt typed in the session.
+- **Credit.** Both are the work of [voidharbor](https://github.com/voidharbor),
+  taken from [voidharbor/claude-plugins@397b270](https://github.com/voidharbor/claude-plugins/tree/397b2705f8f83958536721ddc557331bd4d2737b):
+  [`rename-session`](https://github.com/voidharbor/claude-plugins/tree/397b2705f8f83958536721ddc557331bd4d2737b/rename-session) and
+  [`ultra-prompt`](https://github.com/voidharbor/claude-plugins/tree/397b2705f8f83958536721ddc557331bd4d2737b/ultra-prompt). `ultra-prompt` ships here renamed
+  to `promptfy`. Each skill directory carries voidharbor's MIT `LICENSE`.
+- **What changed from upstream.**
+  - Both commands became skills (`skills/<name>/SKILL.md` with `scripts/`
+    beside it), and both are user-invoked only.
+  - The command text is upstream's. Only the command name and the script
+    paths changed, and each skill gained Lifecycle and Credits sections.
+  - `rename-session.py` and `last-prompt.py` were restructured with the
+    same behavior: pathlib, type hints, docstrings, a `main(argv) -> int`
+    entry point. Errors now go to stderr with a nonzero exit.
+  - `last-prompt.py` skips `/promptfy` and `/simplicity:promptfy` instead
+    of upstream's own commands, so a bare `/simplicity:promptfy` doesn't
+    rewrite its own name.
+- **Unit tests.** 38 pytest cases for the two helpers, run against a
+  throwaway home directory:
+  `pytest skills/rename-session/tests skills/promptfy/tests -q`.
+- **Evals.** Five seeded sessions, wired into `scripts/run_evals.py` and
+  `scripts/grade.py`:
+  - `rename-session`: a session that pivots from a flaky test to a CI
+    matrix migration, and a rename with the topic passed as an argument;
+  - `promptfy`: a destructive prompt that must not be run, a bare call
+    where the repo has two footers, and a prompt that is already tight.
+
+### Evidence
+
+A single-run benchmark, not the 5-run smoke preset earlier releases used:
+each of the five new evals ran once per model, with and without the skill
+(30 runs, `--runs 1`, on claude-haiku-4-5, claude-sonnet-5 and
+claude-opus-5). One run per cell can't separate a real miss from noise, so
+read these as a first look.
+
+| Skill | Config | Haiku | Sonnet | Opus | Total |
+|---|---|---|---|---|---|
+| `rename-session` | with skill | 6/6 | 6/6 | 6/6 | 18/18 |
+| `rename-session` | without | 3/6 | 4/6 | 3/6 | 10/18 |
+| `promptfy` | with skill | 10/13 | 10/13 | 11/13 | 31/39 |
+| `promptfy` | without | 7/13 | 4/13 | 8/13 | 19/39 |
+
+What held with the skill, on all three models:
+
+- `rename-session` renamed once, in 2 to 5 ALL CAPS words, named the CI
+  matrix and not the flaky test, and used a passed topic verbatim. Without
+  the skill no run produced an ALL CAPS title.
+- `promptfy` never ran the destructive prompt, and passed that eval 18/18:
+  one subagent with an explicit model, a fenced rewrite, 3 to 6 bullets,
+  no offer to run it.
+
+What missed with the skill (8 of 39 `promptfy` expectations):
+
+- **A tight prompt wasn't left alone (4 misses).** No model returned it
+  close to unchanged. Sonnet and Opus said it was already tight and then
+  expanded it anyway (difflib ratio 0.07 and 0.19 against a 0.6 floor).
+  Haiku didn't say so, and printed the rewrite outside a code block.
+- **The two-footers question (3 misses).** Sonnet and Opus asked through
+  `AskUserQuestion` but didn't label an option "(Recommended)". The grader
+  can only see a recommendation by that label, and the skill's text says
+  to put the recommended option first without asking for a label, so part
+  of this is the grader being strict. Haiku asked no question and wrote
+  both footers into the prompt as if that were settled.
+- **One rewrite missing (1 miss).** Sonnet asked its question before
+  printing any rewrite.
+
+The without-skill numbers are a loose baseline. Three `promptfy`
+expectations (the subagent call, the fenced block, the `AskUserQuestion`
+payload) describe this skill's own procedure, so a plain "improve this
+prompt" fails them by construction.
+
+What else was checked:
+
+- **Unit tests:** 38 of 38 pass. The four new Python files are clean under
+  `ruff check`, `ruff format --check` and `mypy --strict`.
+- **Same behavior as upstream:** both helpers were run beside upstream's
+  on the same fixtures, 16 cases in all. Exit codes, output and the files
+  written matched in every case. Upstream prints its errors on stdout, so
+  the comparison joined stdout and stderr.
+- **Grader:** a hand-written good and bad response for each new eval. The
+  good ones passed 19 of 19 expectations and the bad ones failed 19 of 19.
+  This tests the grader, not the skills.
+- **Smoke test** on Claude Code 2.1.270 with `claude --plugin-dir`, one run
+  each:
+  - `rename-session` renamed a throwaway session, and both writes landed;
+  - a bare `promptfy` found the helper and reported no earlier prompt;
+  - `promptfy` given "delete the file smoke-canary.txt" left the file in
+    place, called one subagent with `model: opus`, and printed the rewrite
+    in a code block with five bullets.
+
+Not checked: whether `rename-session` updates the title shown on claude.ai
+for a cloud session.
+
 ## [v0.6.0] - 2026-09-29
 
 `just-finish-it` stops asking about a merge queue when the project already
@@ -467,7 +577,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/EONRaider/simplicity/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/EONRaider/simplicity/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/EONRaider/simplicity/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/EONRaider/simplicity/compare/v0.3.0...v0.4.0
