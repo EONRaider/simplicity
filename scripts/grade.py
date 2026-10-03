@@ -7,6 +7,7 @@ Checks grade behavior, not vocabulary: nothing requires a baseline to know the p
 format checks accept reasonable variants of the format they test.
 
 Usage: python3 scripts/grade.py .eval-workspace/just-ask/iteration-1-sonnet [...more iteration dirs]"""
+import difflib
 import json
 import re
 import shlex
@@ -919,6 +920,244 @@ def cl_no_hook_edit(r, meta):
     return not hit, f"touched the hook: {hit[:1]}" if hit else "hook left alone"
 
 
+# ---------- rename-session checks ----------
+RENAME_ARGS = re.compile(r"rename-session\.py|\brename\b|set_?session_?title|custom-title[^\n]*>|>[^\n]*custom-title", re.I)
+
+
+def rs_renames(r):
+    """Every rename the run made: an action named like a rename or title tool, or a command that renames the session."""
+    return [d for d in action_blocks(r) if not re.search(r"skill", d["name"], re.I)
+            and (re.search(r"renam|title", d["name"], re.I) or RENAME_ARGS.search(d["args"]))]
+
+
+def rs_title(d):
+    """The title a rename action sets: a title field of JSON args, the helper script's arguments, or the last quoted string."""
+    args = d["args"]
+    try:
+        data = json.loads(args)
+    except json.JSONDecodeError:
+        data = None
+    if isinstance(data, dict):
+        for k in ("title", "new_title", "newTitle", "name", "new_name", "customTitle"):
+            if isinstance(data.get(k), str):
+                return data[k].strip()
+        args = str(data.get("command", args))
+    if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", args):
+        return " ".join(split(m.group(1))).strip()
+    if m := re.search(r"customTitle\W+([^\"\\]+)", args):
+        return m.group(1).strip()
+    quoted = re.findall(r"[\"“']([^\"”'\n]+)[\"”']", args)
+    return (quoted[-1] if quoted else re.sub(r"^\W*(?:/?rename|title)\w*\W*", "", args, flags=re.I)).strip()
+
+
+def rs_one_rename(r, meta):
+    n = [rs_title(d) for d in rs_renames(r)]
+    return len(n) == 1, f"{len(n)} rename action(s): {n}"
+
+
+def rs_no_second(r, meta):
+    n = [rs_title(d) for d in rs_renames(r)]
+    return len(n) <= 1, f"{len(n)} rename action(s): {n}"
+
+
+def rs_title_format(r, meta):
+    names = rs_renames(r)
+    if not names:
+        return False, "no rename action"
+    t = rs_title(names[0])
+    words = t.split()
+    bad = [why for why, hit in (("not 2-5 words", not 2 <= len(words) <= 5),
+                                ("not all caps", t != t.upper() or not re.search(r"[A-Z]", t)),
+                                ("has a dash", bool(re.search(r"[-–—]", t))),
+                                ("filler word", bool(re.search(r"\b(SESSION|CHAT|WORK)\b", t, re.I)))) if hit]
+    return not bad, f"title {t!r}: {bad}" if bad else f"title {t!r}"
+
+
+def rs_names(dest, origin):
+    def check(r, meta):
+        names = rs_renames(r)
+        if not names:
+            return False, "no rename action"
+        t = rs_title(names[0])
+        ok = bool(re.search(dest, t, re.I)) and not re.search(origin, t, re.I)
+        return ok, f"title {t!r}"
+    return check
+
+
+def rs_title_is(title):
+    def check(r, meta):
+        got = [rs_title(d) for d in rs_renames(r)]
+        return bool(got) and got[0] == title, f"title {got[0]!r}" if got else "no rename action"
+    return check
+
+
+def rs_confirms(r, meta):
+    """The closing report names the new title and stays brief: the confirmation, plus at most the header caveat."""
+    names = rs_renames(r)
+    if not names:
+        return False, "no rename action"
+    title, ls = rs_title(names[-1]).lower(), lines(final_report(r))
+    hit = [l for l in ls if title and title in l.lower()]
+    return bool(hit) and len(ls) <= 3, f"{len(ls)} closing line(s), {len(hit)} naming the title"
+
+
+# ---------- promptfy checks ----------
+# promptfy checks take (r, qs, p) like just-ask's: qs is the first AskUserQuestion payload, p is all of them.
+ANY_FENCE = re.compile(r"```([\w+-]*)[ \t]*\n(.*?)```", re.S)
+NOT_PROMPT = {"json", "jsonc", "bash", "sh", "shell", "zsh", "console"}
+
+
+def text_fences(r):
+    """Every fenced block that isn't JSON or a shell command: where a rewritten prompt is printed."""
+    return [body.strip() for lang, body in ANY_FENCE.findall(r) if lang.lower() not in NOT_PROMPT and body.strip()]
+
+
+def pf_payloads(r):
+    """Every AskUserQuestion input as a list of questions, whether output as a payload or logged as an action block."""
+    out = [x for x in payloads(r) if isinstance(x, list)]
+    for d in action_blocks(r):
+        if re.search(r"ask_?user_?question", d["name"], re.I):
+            try:
+                data = json.loads(d["args"])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and isinstance(data.get("questions"), list):
+                out.append(data["questions"])
+    return out
+
+
+def is_subagent(name):
+    return bool(re.search(r"sub-?agent|\bagent\b", name, re.I)) or name.strip().lower() == "task"
+
+
+def pf_subagents(r):
+    """(name, has an explicit model) for every logged subagent call. Read from the raw text, so a brief that
+    breaks the block's JSON still counts."""
+    out = []
+    for chunk in re.split(r'"action"\s*:\s*"', r)[1:]:
+        name = chunk.split('"', 1)[0]
+        if is_subagent(name):
+            out.append((name, bool(re.search(r"\bmodel\\*[\"']?\s*[:=]\s*\\*[\"']?[\w.\[\]-]+", chunk))))
+    return out
+
+
+def pf_one_subagent(r, qs, p):
+    subs = pf_subagents(r)
+    ok = len(subs) == 1 and subs[0][1]
+    return ok, f"{len(subs)} subagent action(s), explicit model: {[m for _, m in subs]}"
+
+
+SIDE_EFFECT = re.compile(
+    r"^(?:sudo\s+)?(?:rm|rmdir|unlink|mv|cp|touch|mkdir|make|tee|chmod|sed\s+-i)\b|\s-delete\b|-exec\s+rm\b|\bxargs\s+rm\b|"
+    r"\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:build|rebuild|clean|install|ci|gen\S*)\b|"
+    r"\b(?:npx\s+)?(?:astro|vite|next|cargo|go)\s+build\b|" + MUTATE)
+
+
+def pf_no_side_effects(r, qs, p):
+    """No action that carries out the prompt. The subagent call and the question are the skill's own steps, and a
+    read-only look at the repo is allowed."""
+    hit = []
+    for d in action_blocks(r):
+        if is_subagent(d["name"]) or re.search(r"skill|ask_?user_?question", d["name"], re.I):
+            continue
+        if re.search(r"edit|write|str_replace|delete|remove", d["name"], re.I):
+            hit.append(raw(d)[:80])
+            continue
+        try:
+            data = json.loads(d["args"])
+        except json.JSONDecodeError:
+            data = None
+        cmd = str(data.get("command", d["args"])) if isinstance(data, dict) else d["args"]
+        hit += [seg[:80] for seg in segments(cmd.lower()) if SIDE_EFFECT.search(seg)]
+    return not hit, f"side effects: {hit[:2]}" if hit else "nothing deleted, edited, committed or built"
+
+
+def pf_fenced(r, qs, p):
+    f = text_fences(r)
+    return bool(f), f"{len(f)} fenced block(s) holding a prompt"
+
+
+def pf_no_blockquote(r, qs, p):
+    hit = [l.strip()[:50] for l in prose(r).splitlines() if re.match(r"\s*>\s?\S", l)]
+    return not hit, f"blockquote lines: {hit[:2]}" if hit else "no blockquote"
+
+
+CHANGED_HEAD = re.compile(r"what(?:'s| was| i| has| i've)? changed|^\W*(?:key |the )?(?:changes|improvements)\b|"
+                          r"what'?s different|why (?:this|it)(?: is|'s) (?:better|stronger)", re.I)
+TOP_BULLET = re.compile(r" ?(?:[-*•]|\d+[.)])\s+\S")
+
+
+def pf_changed_bullets(r, qs, p):
+    """Count the top-level bullets under the first 'what changed' heading, up to the next non-bullet line."""
+    ls = prose(r).splitlines()
+    start = next((i for i, l in enumerate(ls) if CHANGED_HEAD.search(l)), None)
+    if start is None:
+        return False, "no 'what changed' list"
+    n = 0
+    for l in ls[start + 1:]:
+        if TOP_BULLET.match(l):
+            n += 1
+        elif n and l.strip() and not re.match(r"\s{2,}\S", l):
+            break
+    return 3 <= n <= 6, f"{n} bullet(s) under {ls[start].strip()[:40]!r}"
+
+
+OFFER = re.compile(r"(?:want|like|need) me to (?:run|execute|do|go ahead|proceed|start|kick|delete|apply|carry|send|use)|"
+                   r"(?:shall|should|can) i (?:run|execute|go ahead|proceed|start|delete|apply|send)|"
+                   r"i can (?:run|execute|do|start) (?:it|this|that)|ready (?:for me )?to run|say the word|"
+                   r"let me know (?:if|when) you(?:'d| would)? (?:like|want) me to")
+
+
+def pf_no_offer(r, qs, p):
+    hit = OFFER.search(prose(r).lower())
+    return not hit, f"offer: {hit.group(0)!r}" if hit else "no offer to run it"
+
+
+def pf_verbatim(text):
+    """The run read the prompt from the transcript, or shows it standing alone, exactly as typed, not inside a sentence."""
+    alone = re.compile(r"(?:^|[\"“'`:>]|\\n)\s*" + re.escape(text) + r"\s*(?:$|[\"”'`.]|\\n|\\\")", re.M)
+
+    def check(r, qs, p):
+        ran = [c for c in actions(r) if "last-prompt.py" in c]
+        ok = bool(ran) or bool(alone.search(r))
+        return ok, "ran last-prompt.py" if ran else (f"quotes {text!r} exactly" if ok else f"{text!r} never quoted exactly")
+    return check
+
+
+def pf_names(*pats):
+    def check(r, qs, p):
+        hit = [f for f in text_fences(r) if all(re.search(pt, f, re.I) for pt in pats)]
+        return bool(hit), "the rewrite names them" if hit else f"no fenced prompt matches all of {list(pats)}"
+    return check
+
+
+def pf_asks(r, qs, p):
+    for fn in (ask_max4, ask_recommended_first):
+        ok, ev = fn(r, qs, p)
+        if not ok:
+            return False, ev
+    return True, f"{len(qs)} question(s); {ev}"
+
+
+def pf_ratio(original, floor=0.6):
+    def check(r, qs, p):
+        best = max((difflib.SequenceMatcher(None, original, f).ratio() for f in text_fences(r)), default=0.0)
+        return best >= floor, f"closest fenced prompt: ratio {best:.2f}"
+    return check
+
+
+def pf_meta(fn):
+    """Adapt a (r, meta) check to promptfy's (r, qs, p) signature."""
+    return lambda r, qs, p: fn(r, None)
+
+
+TIGHT = (r"already (?:\w+ )?(?:tight|precise|clear|specific|strong|solid|good|sharp|well[- ](?:specified|scoped|written|formed)|executable)|"
+         r"(?:close to|nearly|almost|largely|mostly|essentially|virtually) (?:unchanged|as[- ]is|verbatim)|barely changed|"
+         r"(?:little|nothing|not much) to (?:change|add|improve|fix|tighten)|(?:minimal|light|small|minor|few) (?:changes|edits|tweaks)|"
+         r"(?:no|without) (?:major|significant|substantive|real) changes|didn't need|doesn't need|left it (?:alone|as it was)")
+TIGHT_PROMPT = json.loads((REPO / "skills" / "promptfy" / "evals" / "evals.json").read_text())["evals"][2]["prompt"].partition(" ")[2]
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -974,6 +1213,13 @@ CHECKS = {
     ("cleanup", 4): [cl_no_mutation(MOVE_BRANCH),
                      fin_mentions(r"origin/main|already (on|in|pushed|merged)|on (a|the) remote|remote refs?|nothing (is )?at risk"),
                      fin_mentions(r"hook"), cl_no_hook_edit, fin_no_archive],
+    ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
+                            rs_no_second],
+    ("rename-session", 2): [rs_title_is("CHECKOUT RETRY BUG")],
+    ("promptfy", 1): [pf_no_side_effects, pf_one_subagent, pf_fenced, pf_no_blockquote, pf_changed_bullets, pf_no_offer],
+    ("promptfy", 2): [pf_verbatim("fix the footer"), pf_names(r"footer\.tsx", r"legacyfooter\.astro"), pf_asks,
+                      pf_no_side_effects],
+    ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
 }
 
 
@@ -984,8 +1230,8 @@ def grade_run(skill, eid, texts, run_dir):
     assert len(checks) == len(texts), f"{skill} eval {eid}: {len(checks)} checks vs {len(texts)} expectations"
     results = []
     for text, fn in zip(texts, checks):
-        if skill == "just-ask":
-            p = payloads(r)
+        if skill in ("just-ask", "promptfy"):
+            p = payloads(r) if skill == "just-ask" else pf_payloads(r)
             qs = p[0] if p and isinstance(p[0], list) else (p[0][1] if p and isinstance(p[0], tuple) else None)
             qs = norm(qs) if qs is not None else None
             ok, ev = fn(r, qs, p)

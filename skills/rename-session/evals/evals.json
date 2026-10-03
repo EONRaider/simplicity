@@ -1,0 +1,34 @@
+{
+  "skill_name": "rename-session",
+  "harness_notes": "Same harness as cleanup: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the session's environment and its current title, only the Skill tool is available, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. Any rename or title action counts as a rename, whether it runs the helper script or a session tool. `prompt` runs with the plugin loaded, `baseline_prompt` without it.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:rename-session",
+      "baseline_prompt": "Rename this session after what it was actually about.",
+      "expected_output": "Renames the session once, to a 2 to 5 word ALL CAPS title that names where the session ended up, the CI matrix migration, and not the flaky test it opened on. Confirms the new name in one line, says the pane header may show the old title until the session is reopened, and doesn't rename a second time.",
+      "files": [
+        "evals/files/session-pivot.md"
+      ],
+      "expectations": [
+        "Takes exactly one rename action",
+        "The title is 2 to 5 words, all caps, with no dash and no SESSION, CHAT or WORK",
+        "The title names the destination (the CI matrix), not the origin (the flaky test)",
+        "Confirms the new name in one line",
+        "Doesn't rename a second time"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:rename-session checkout retry bug",
+      "baseline_prompt": "Rename this session: checkout retry bug",
+      "expected_output": "Uses the topic the user passed, uppercased, as the title: CHECKOUT RETRY BUG. It doesn't name the session after the webhook work that takes up most of the transcript.",
+      "files": [
+        "evals/files/session-named-topic.md"
+      ],
+      "expectations": [
+        "The title is exactly CHECKOUT RETRY BUG"
+      ]
+    }
+  ]
+}
