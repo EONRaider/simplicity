@@ -5,6 +5,49 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.7.1] - 2026-10-03
+
+Fixes what the v0.7.0 benchmark found in `promptfy`, and stops both new
+skills from asking permission to run their own helper.
+
+### Changed
+
+- **`promptfy` leaves a tight prompt alone.** Before it calls the
+  subagent, it now checks whether the prompt already names verified paths,
+  a finish line and its constraints. If so it prints the prompt back as
+  typed and changes only what the repo proved wrong. In v0.7.0 every model
+  expanded such a prompt.
+- **`promptfy` labels its recommendation.** The first option of each
+  `AskUserQuestion` question now ends in "(Recommended)", so you can see
+  which option is recommended and not only that one is first.
+- **No permission prompt for the helpers.** `rename-session` and
+  `promptfy` declare `allowed-tools` for their own script and nothing
+  else. Without it, `claude -p` denied the rename outright; with it, the
+  same call ran with no denial.
+
+The first two changes depart from voidharbor's text. Each skill's Credits
+section lists them.
+
+### Evidence
+
+The with-skill evals for both skills, run once per model (15 runs,
+`--runs 1`, on claude-haiku-4-5, claude-sonnet-5 and claude-opus-5). No
+baseline was rerun: the baseline prompts and the grader didn't change.
+
+| Skill | Haiku | Sonnet | Opus | Total | v0.7.0 total |
+|---|---|---|---|---|---|
+| `rename-session` | 6/6 | 6/6 | 6/6 | 18/18 | 18/18 |
+| `promptfy` | 11/13 | 13/13 | 13/13 | 37/39 | 31/39 |
+
+- The tight-prompt eval went from 5/9 to 9/9.
+- The two-footers eval went from 8/12 to 11/12. Sonnet and Opus now label
+  the recommended option.
+- Two misses remain, both on Haiku. It quoted the project's notes in a
+  blockquote on the destructive-prompt eval, which passed 6/6 in v0.7.0.
+  And it again wrote both footers into the prompt instead of asking.
+
+One run per cell, so a single miss or pass may be noise.
+
 ## [v0.7.0] - 2026-10-03
 
 Two new commands, both adapted from
@@ -584,7 +627,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.1...HEAD
+[v0.7.1]: https://github.com/EONRaider/simplicity/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/EONRaider/simplicity/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/EONRaider/simplicity/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/EONRaider/simplicity/compare/v0.4.0...v0.5.0

@@ -3,6 +3,7 @@ name: rename-session
 description: Renames the current session after what the conversation has actually been about, as a 2 to 5 word ALL CAPS title that names where the work ended up, so the session is findable later in the resume picker. An argument is used as the topic to name. Invoked by the user as /simplicity:rename-session [topic].
 disable-model-invocation: true
 argument-hint: "[topic]"
+allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/rename-session.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)
 compatibility: Claude Code (uses the Claude Code-only disable-model-invocation and argument-hint fields). Needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
 ---
@@ -64,4 +65,5 @@ Adapted from `rename-session` by [voidharbor](https://github.com/voidharbor), [v
 
 - The command is now a skill: `commands/rename-session.md` became this `SKILL.md`, and the helper moved to `scripts/` beside it.
 - It is user-invoked only (`disable-model-invocation: true`), as `/simplicity:rename-session`.
+- `allowed-tools` lets the skill run its own helper script without a permission prompt.
 - The helper script was hardened with the same behavior: pathlib, type hints, docstrings, errors on stderr with a nonzero exit, and unit tests.
