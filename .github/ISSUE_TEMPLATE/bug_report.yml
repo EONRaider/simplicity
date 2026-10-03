@@ -1,0 +1,44 @@
+name: Bug report
+description: A skill or helper script behaved incorrectly
+labels: [bug]
+body:
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      description: For example `/simplicity:just-finish-it`.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >
+        The state of the session when you ran the skill, and what it did or printed.
+        Remove anything private before pasting.
+    validations:
+      required: true
+  - type: input
+    id: plugin
+    attributes:
+      label: simplicity version
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version (`claude --version`)
+    validations:
+      required: true
+  - type: input
+    id: surface
+    attributes:
+      label: Where you ran it
+      description: Desktop app, CLI or a cloud session, plus OS and Python version if a helper script is involved.

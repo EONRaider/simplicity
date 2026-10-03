@@ -49,6 +49,13 @@ rewrites a prompt into a stronger one without running it.
   - `promptfy`: a destructive prompt that must not be run, a bare call
     where the repo has two footers, and a prompt that is already tight.
 
+- **Project scaffolding**, matching EONRaider's other plugin repos:
+  `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull
+  request templates, `CODEOWNERS`, Dependabot for GitHub Actions, and a CI
+  workflow. CI lints and type-checks the two helpers, runs their unit
+  tests on Linux and macOS, and checks that every eval has a seed file
+  and one grader check per expectation. It runs no evals.
+
 ### Evidence
 
 A single-run benchmark, not the 5-run smoke preset earlier releases used:

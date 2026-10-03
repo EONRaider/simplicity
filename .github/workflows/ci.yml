@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HELPERS: >-
+    skills/rename-session/scripts/rename-session.py
+    skills/rename-session/tests/test_rename_session.py
+    skills/promptfy/scripts/last-prompt.py
+    skills/promptfy/tests/test_last_prompt.py
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, python: "3.10" }
+          - { os: ubuntu-latest, python: "3.13" }
+          - { os: macos-latest, python: "3.13" }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade pip pytest ruff mypy
+      # Only the helper scripts and their tests are linted; the eval harness under scripts/ is not.
+      - run: ruff check $HELPERS
+      - run: ruff format --check $HELPERS
+      - run: mypy --strict $HELPERS
+      - run: pytest skills/rename-session/tests skills/promptfy/tests -q
+      - name: Manifest and evals are consistent
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "scripts")
+          import grade
+
+          manifest = json.loads(Path(".claude-plugin/plugin.json").read_text())
+          for skill_path in manifest["skills"]:
+              skill = Path(skill_path)
+              assert (skill / "SKILL.md").is_file(), f"{skill}: no SKILL.md"
+              for ev in json.loads((skill / "evals" / "evals.json").read_text())["evals"]:
+                  assert (skill / ev["files"][0]).is_file(), f"{skill.name} eval {ev['id']}: missing seed"
+                  checks = grade.CHECKS[(skill.name, ev["id"])]
+                  assert len(checks) == len(ev["expectations"]), f"{skill.name} eval {ev['id']}: checks != expectations"
+          PY
+
+  # Single stable check name for the branch ruleset.
+  ci:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.test.result }}" = "success"
