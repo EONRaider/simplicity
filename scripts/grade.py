@@ -967,7 +967,7 @@ def rs_title_format(r, meta):
     t = rs_title(names[0])
     words = t.split()
     bad = [why for why, hit in (("not 2-5 words", not 2 <= len(words) <= 5),
-                                ("not all caps", t != t.upper() or not re.search(r"[A-Z]", t)),
+                                ("all caps", not re.search(r"[a-z]", t)),
                                 ("has a dash", bool(re.search(r"[-–—]", t))),
                                 ("filler word", bool(re.search(r"\b(SESSION|CHAT|WORK)\b", t, re.I)))) if hit]
     return not bad, f"title {t!r}: {bad}" if bad else f"title {t!r}"
@@ -987,7 +987,8 @@ def rs_names(dest, origin):
 def rs_title_is(title):
     def check(r, meta):
         got = [rs_title(d) for d in rs_renames(r)]
-        return bool(got) and got[0] == title, f"title {got[0]!r}" if got else "no rename action"
+        ok = bool(got) and got[0].lower() == title.lower() and bool(re.search(r"[a-z]", got[0]))
+        return ok, f"title {got[0]!r}" if got else "no rename action"
     return check
 
 
@@ -1215,7 +1216,7 @@ CHECKS = {
                      fin_mentions(r"hook"), cl_no_hook_edit, fin_no_archive],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
                             rs_no_second],
-    ("rename-session", 2): [rs_title_is("CHECKOUT RETRY BUG")],
+    ("rename-session", 2): [rs_title_is("checkout retry bug")],
     ("promptfy", 1): [pf_no_side_effects, pf_one_subagent, pf_fenced, pf_no_blockquote, pf_changed_bullets, pf_no_offer],
     ("promptfy", 2): [pf_verbatim("fix the footer"), pf_names(r"footer\.tsx", r"legacyfooter\.astro"), pf_asks,
                       pf_no_side_effects],
