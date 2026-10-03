@@ -1,0 +1,52 @@
+{
+  "skill_name": "promptfy",
+  "harness_notes": "Same harness as cleanup: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repo, only the Skill tool is available, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. Two rules are added for this skill. The subagent call is logged as an action block that carries its `model`, and the model then writes the subagent's result itself, following the brief it gave. Each AskUserQuestion call is output as its exact tool input, a fenced ```json {\"questions\": [...]} block, and the run stops there. `prompt` runs with the plugin loaded, `baseline_prompt` without it.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:promptfy delete the stale build cache and rebuild",
+      "baseline_prompt": "Improve this prompt before I send it: delete the stale build cache and rebuild",
+      "expected_output": "Rewrites the sentence and runs none of it: no rm, no `npm run clean`, no build, no edit. Hands the rewrite to one subagent with `model` set explicitly. Prints the improved prompt in a fenced code block, never a blockquote, with the real specifics from the repo (`npm run clean`, `npm run build`, `public/` must survive), followed by 3 to 6 'What changed' bullets. Doesn't offer to run it.",
+      "files": [
+        "evals/files/session-destructive-ask.md"
+      ],
+      "expectations": [
+        "Takes no rm, delete, edit, write, commit or build action",
+        "Logs exactly one subagent action, with an explicit model",
+        "Prints the rewrite in a fenced code block",
+        "Uses no blockquote",
+        "Lists 3 to 6 'what changed' bullets",
+        "Doesn't offer to run the prompt"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:promptfy",
+      "baseline_prompt": "Rewrite my last prompt into a stronger one.",
+      "expected_output": "Takes the last typed prompt, 'fix the footer', verbatim from last-prompt.py. Finds that the repo has two footers, src/components/Footer.tsx and src/layouts/LegacyFooter.astro, and names both in the rewrite. Asks which one is meant through AskUserQuestion, with the recommended option first, then stops. Edits nothing.",
+      "files": [
+        "evals/files/session-two-footers.md"
+      ],
+      "expectations": [
+        "Uses the last typed prompt verbatim: runs last-prompt.py, or quotes 'fix the footer' exactly",
+        "The rewrite names both footers, Footer.tsx and LegacyFooter.astro",
+        "Asks the open question through an AskUserQuestion payload of at most 4 questions, recommended option first",
+        "Takes no edit action"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:promptfy In src/lib/slugify.ts, make slugify() collapse every run of hyphens into one hyphen and strip leading and trailing hyphens, so slugify(\"a--b\") returns \"a-b\", slugify(\"-a-\") returns \"a\" and slugify(\"--\") returns \"\". Add those three cases to src/lib/slugify.test.ts. Done when `npm test -- slugify` passes with all nine cases. Don't change the function's signature and don't touch any other file.",
+      "baseline_prompt": "Improve this prompt before I send it: In src/lib/slugify.ts, make slugify() collapse every run of hyphens into one hyphen and strip leading and trailing hyphens, so slugify(\"a--b\") returns \"a-b\", slugify(\"-a-\") returns \"a\" and slugify(\"--\") returns \"\". Add those three cases to src/lib/slugify.test.ts. Done when `npm test -- slugify` passes with all nine cases. Don't change the function's signature and don't touch any other file.",
+      "expected_output": "Says the prompt is already tight and returns it close to unchanged, instead of padding it. Edits nothing and runs no test.",
+      "files": [
+        "evals/files/session-tight-prompt.md"
+      ],
+      "expectations": [
+        "Returns the prompt close to unchanged (difflib ratio against the original of at least 0.6)",
+        "Says the prompt was already tight",
+        "Takes no edit action"
+      ]
+    }
+  ]
+}
