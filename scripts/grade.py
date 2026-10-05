@@ -153,8 +153,19 @@ def ask_no_payload(r, qs, p):
 ITEM = re.compile(r"^\d+\.\s+\*\*[^*]+?\*\*(?:\s*[—–:-]|(?<=:\*\*))\s*\S")
 
 
+def is_skill_load(block):
+    """A fenced block holding a real Skill call: loading a skill is a tool call, not output the user reads."""
+    try:
+        d = json.loads(block)
+    except json.JSONDecodeError:
+        return False
+    return is_action(d) and d["action"] == "Skill" and bool(d.get("real_tool_call"))
+
+
 def lines(r):
-    return [l for l in r.strip().splitlines() if l.strip()]
+    """The response's non-blank lines, without real Skill calls, so format checks don't count a skill load."""
+    shown = FENCE.sub(lambda m: "" if is_skill_load(m.group(1)) else m.group(0), r)
+    return [l for l in shown.strip().splitlines() if l.strip()]
 
 
 def say_no_preamble(r, meta):
@@ -1159,22 +1170,12 @@ TIGHT = (r"already (?:\w+ )?(?:tight|precise|clear|specific|strong|solid|good|sh
 TIGHT_PROMPT = json.loads((REPO / "skills" / "promptfy" / "evals" / "evals.json").read_text())["evals"][2]["prompt"].partition(" ")[2]
 
 
-SKILL_LOAD = re.compile(r"```json\n(\{\"action\": \"Skill\".*?\"real_tool_call\": true[^\n]*)\n```\s*")
-
-
-def without_skill_loads(r):
-    """The response with real Skill calls removed. Loading a skill is a tool call the user never sees as output, so
-    format checks such as "no preamble" must not count it."""
-    return SKILL_LOAD.sub("", r)
-
-
 def loads_skill(name):
     """A real Skill call that loaded simplicity:<name>. A command named mid-sentence isn't expanded, so the model has
-    to load the skill itself before it can follow it. It reads the unstripped response."""
+    to load the skill itself before it can follow it."""
     def check(r, *_):
         hit = [d for d in action_blocks(r) if d["name"] == "Skill" and f"simplicity:{name}" in d["args"]]
         return bool(hit), f"loaded simplicity:{name}" if hit else f"no Skill call loaded simplicity:{name}"
-    check.reads_skill_loads = True
     return check
 
 
@@ -1243,8 +1244,7 @@ CHECKS = {
 }
 # A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
 MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3}
-for _skill, _eid in MID_SENTENCE.items():
-    CHECKS[(_skill, _eid)] = CHECKS[(_skill, 1)] + [loads_skill(_skill)]
+CHECKS.update({(skill, eid): CHECKS[(skill, 1)] + [loads_skill(skill)] for skill, eid in MID_SENTENCE.items()})
 
 
 def grade_run(skill, eid, texts, run_dir):
@@ -1252,12 +1252,9 @@ def grade_run(skill, eid, texts, run_dir):
     meta = json.loads((run_dir / "outputs" / "result.json").read_text())
     checks = CHECKS[(skill, eid)]
     assert len(checks) == len(texts), f"{skill} eval {eid}: {len(checks)} checks vs {len(texts)} expectations"
-    raw_r, r = r, without_skill_loads(r)
     results = []
     for text, fn in zip(texts, checks):
-        if getattr(fn, "reads_skill_loads", False):
-            ok, ev = fn(raw_r)
-        elif skill in ("just-ask", "promptfy"):
+        if skill in ("just-ask", "promptfy"):
             p = payloads(r) if skill == "just-ask" else pf_payloads(r)
             qs = p[0] if p and isinstance(p[0], list) else (p[0][1] if p and isinstance(p[0], tuple) else None)
             qs = norm(qs) if qs is not None else None
