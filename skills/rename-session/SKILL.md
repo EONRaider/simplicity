@@ -1,6 +1,6 @@
 ---
 name: rename-session
-description: Renames the current session after what the conversation has actually been about, as a 2 to 5 word sentence-case title that names where the work ended up, so the session is findable later in the resume picker. An argument is used as the topic to name. Invoked by the user as /simplicity:rename-session [topic]. Use it only when the user names /simplicity:rename-session or asks for rename-session by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
+description: Renames the current session after what the conversation has actually been about, as a 2 to 5 word sentence-case title that names where the work ended up, so the session is findable later in the resume picker. An argument is used as the topic to name. Invoked by the user as /simplicity:rename-session [topic]. Use when the user names /simplicity:rename-session or asks for rename-session by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[topic]"
 allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/rename-session.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)

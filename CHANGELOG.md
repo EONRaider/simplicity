@@ -5,6 +5,38 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.8.1] - 2026-10-05
+
+The five skills v0.8.0 changed ship current security-scan markers again.
+
+### Fixed
+
+- **Stale `.security-scan-passed` markers.** v0.8.0 edited `what-now`,
+  `just-say-it`, `just-ask`, `promptfy` and `rename-session` without
+  re-running SkillArtisan's security scan, so each marker's hash no longer
+  matched the skill's files and a SkillArtisan audit failed
+  `security-scan-marker-current` on all five. A clean scan with gitleaks
+  8.21.2 rewrote them.
+
+### Changed
+
+- **The description sentence opens "Use when".** It read "Use it only
+  when", which the audit's trigger-framing check doesn't recognise. The
+  meaning is unchanged: Claude uses a skill when the user names it, and
+  never on a paraphrase.
+- **`RELEASING.md` gains a re-scan step** before the changelog is dated,
+  so a release can't ship stale markers again.
+
+### Evidence
+
+- **Audit:** SkillArtisan's `audit.py report` on all seven skills passes
+  `security-scan-marker-current` and `description-pushy-imperative`.
+- **Trigger sets:** re-measured with the reworded descriptions, three runs
+  per query on the `sonnet` alias: 50 of 50 queries passed, as in v0.8.0.
+
+Not re-run: the eval suite. Only the opening words of one description
+sentence changed in each skill, and the trigger sets cover that sentence.
+
 ## [v0.8.0] - 2026-10-05
 
 A command named mid-sentence now runs. Claude Code runs a typed command
@@ -753,7 +785,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.8.1...HEAD
+[v0.8.1]: https://github.com/EONRaider/simplicity/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://github.com/EONRaider/simplicity/compare/v0.7.2...v0.8.0
 [v0.7.2]: https://github.com/EONRaider/simplicity/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/EONRaider/simplicity/compare/v0.7.0...v0.7.1
