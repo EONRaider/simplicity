@@ -109,7 +109,9 @@ def run_one(job):
     skill, model, iteration, ev, config, k = job
     run_dir = WS / skill / f"{iteration}-{model}" / f"eval-{ev['id']}" / config / f"run-{k}"
     out = run_dir / "outputs"
-    if (out / "response.md").exists() and not json.loads((out / "result.json").read_text()).get("error"):
+    prior = json.loads((out / "result.json").read_text()) if (out / "result.json").exists() else {}
+    # A failed call (an expired login, say) is recorded either as "error" or as "is_error": rerun both.
+    if (out / "response.md").exists() and not prior.get("error") and not prior.get("is_error"):
         return f"skip {run_dir.relative_to(WS)}"
     out.mkdir(parents=True, exist_ok=True)
     seed = (REPO / "skills" / skill / ev["files"][0]).read_text()

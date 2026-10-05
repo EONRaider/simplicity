@@ -20,7 +20,8 @@ suggests it once context use reaches a threshold.
      - it never force-pushes;
      - it never stages a file holding a secret;
      - it holds back any branch whose `git diff origin/<default>...<branch>`
-       holds one, scanned after the handoff commit.
+       or per-commit history (`git log -p`) holds one, scanned after the
+       handoff commit.
      It opens a PR only with `--pr`.
   2. **Updates every tracker it finds.** That's the tracker CLAUDE.md
      names, Jira (through the Atlassian MCP), GitHub issues and PRs, the
@@ -232,8 +233,39 @@ suggests it once context use reaches a threshold.
        loaded `/simplicity:cleanup`, without another question.
     Its setup prompt didn't mention committing, and the classifier
     allowed the commit and the push.
-  - **Not repeated** after the last wording change: the evals. The
-    headless re-run failed to authenticate (an expired OAuth session).
+- **Final evals, on the wording after the live runs.** 33 runs, with
+  skill, one per cell. Evals 4 and 11 were rerun after the two fixes
+  below.
+
+  | Model | Final | Round 2 |
+  |---|---|---|
+  | claude-haiku-4-5 | 52/72 | 60/72 |
+  | claude-sonnet-5 | 66/72 | 72/72 |
+  | claude-opus-5 | 70/72 | 71/72 |
+
+  - **What the first final pass found:**
+    - **A pushed secret.** Haiku "fixed" the committed `.env` in eval 4
+      with a deleting commit and pushed, which sent the secret anyway.
+      The net `git diff origin/<default>...<branch>` can't see that, since
+      an add and a delete cancel out. Step 1 now also scans
+      `git log -p origin/<default>..<branch>`, and says not to fix a
+      secret during the shift. On the rerun, no model pushed the branch.
+    - **Commits after "Not now".** In eval 11, Sonnet and Opus went on
+      to commit, and Sonnet to push, the work the user had asked for.
+      Step 0 now says the shift's go-ahead doesn't carry over. On the
+      rerun all three models still committed, so this stays a miss. The
+      seed's "the decay isn't committed yet" invites it.
+  - **Other misses:**
+    - Sonnet didn't act on the hook's message in eval 9 (5/5 in round
+      2); Haiku didn't in evals 9 and 11.
+    - Haiku again passed a placeholder handoff in eval 1, and missed
+      most tracker updates in eval 6.
+  - **Harness fixes:**
+    - The first final pass hit an expired login, and `run_evals.py`
+      skipped those runs on resume, because it rechecked only `error`,
+      not `is_error`. It now reruns both.
+    - `sh_no_fixup` matched "rebase" inside a handoff prompt; it now
+      reads only git commands.
 
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
 and the automatic-start path, since this app build has no automatic start

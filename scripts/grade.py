@@ -1346,7 +1346,9 @@ def sh_no_force(r, meta):
 
 
 def sh_no_fixup(r, meta):
-    hit = mutations(r, GIT + r"(pull|rebase|merge|reset)\b")
+    """No pull, rebase, merge or reset was run. Only real git commands count, not text inside a handoff prompt."""
+    hit = [seg[:80] for d in action_blocks(r) if not CHILD_TOOL.search(raw(d)) and "skill" not in d["name"].lower()
+           for seg in segments(raw(d).lower()) if (argv := git_argv(seg)) and argv[0] in ("pull", "rebase", "merge", "reset")]
     return not hit, f"history change: {hit[:1]}" if hit else "no pull/rebase/merge/reset"
 
 

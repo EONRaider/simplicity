@@ -26,7 +26,7 @@ The arguments this run was given: "$ARGUMENTS". They're empty when there were no
 - question: "Context is at <percent>%. Shift this session to a fresh one now?" Take the percent from the hook's message, or from the app's usage tool if one exists.
 - options: "Shift now (Recommended)", described as committing and pushing the work, commenting on the trackers the project has (comments can notify their watchers) and starting the child; and "Not now", described as continuing here, with the hook asking again 10 points later.
 
-On "Shift now", run steps 1 to 6 without asking anything else. On anything else, say in one line that the session continues, and stop. Nothing before the answer may commit, push, update a tracker, rename or start a session; reading state is fine.
+On "Shift now", run steps 1 to 6 without asking anything else. On anything else, say in one line that the session continues, and stop the skill. Then carry on with what the user had asked before the hook, as if the skill hadn't run: its go-ahead to commit and push doesn't carry over, so don't commit or push unless the user asks for that themselves. Nothing before the answer may commit, push, update a tracker, rename or start a session; reading state is fine.
 
 `--pr` works the same in both modes.
 
@@ -44,7 +44,7 @@ Work out the repositories this session touched. For each one, read `git status -
 
 
 1. **Commit.** Stage the changes, except held-back files, and commit with a message that says what the work is and that it's a handoff, following any commit conventions in the project's CLAUDE.md. A half-finished state is fine to commit: the handoff says what's unfinished. Don't commit stashes; list them as pending.
-2. **Scan the branch.** Read `git diff origin/<default>...<branch>`, which now includes the handoff commit. If anything in it holds a secret, don't push the branch. Put it on the pending list with the file and the kind of secret, and the next step of removing it from the branch's history.
+2. **Scan the branch.** Read `git diff origin/<default>...<branch>`, which now includes the handoff commit, and also `git log -p origin/<default>..<branch>`. The second one shows every commit's own changes: a secret added in one commit and deleted in a later one cancels out of the diff but is still in the history that a push sends. If either holds a secret, don't push the branch, and don't try to fix it during the shift: a commit that deletes the file or adds it to `.gitignore` leaves the secret in the history. Put the branch on the pending list with the file and the kind of secret, and the next step of rewriting its history (and rotating the secret if it was ever pushed).
 3. **Push.** `git push -u origin <branch>`. Never force-push. If the push is rejected because the remote moved, don't pull, rebase or merge on your own: put the branch on the pending list.
 4. **PR, only with `--pr`.** If the branch has no PR, open one against the default branch (`gh pr create`, or the MCP `create_pull_request`), as a draft when the work isn't finished. Without `--pr`, open no PR, even when the project's CLAUDE.md or your own habits would normally open one.
 
