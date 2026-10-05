@@ -178,7 +178,26 @@ suggests it once context use reaches a threshold.
     - **Step 0 arguments.** Claude Code substitutes `$ARGUMENTS` in the
       skill text, which turned step 0's check into "`` doesn't hold
       `--auto`". Step 0 now quotes the arguments it was given.
-  - **Not repeated** after these three wording fixes: the shift itself and the evals.
+  - **A second full shift, on the fixed version.**
+    - **Part counting:** the session started as "Sandbox changelog -> Part 2"
+      (`get_session` returned it as `-&gt;`), and the shift produced
+      Part 3.
+    - **Arguments:** step 0 read `The arguments this run was given: "".`
+    - **Archive retry:** you clicked the chip while the parent was still
+      working. The child's first archive was refused; it waited 30
+      seconds in the background and archived the parent on the second
+      try.
+    - **Origin:** got only `shift/sandbox-changelog`.
+  - **Two more fixes came out of the second shift:**
+    - **Auto-mode denial.** In auto permission mode, the classifier
+      denied the chained switch, add, commit and push command, and the
+      model stopped the whole shift; it pushed once the user approved in
+      the conversation. Step 1 now runs each git step as its own command.
+      A denied step goes on the pending list and the handoff still
+      happens.
+    - **Cleanup skipped.** The model never loaded `/simplicity:cleanup`
+      in that run. Step 6 now says to load it with the Skill tool.
+  - **Not repeated** after these two fixes: the shift and the evals.
 
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
 the hook-triggered path in the desktop app, and the automatic-start path,

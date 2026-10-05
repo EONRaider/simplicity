@@ -40,7 +40,8 @@ Work out the repositories this session touched. For each one, read `git status -
 
 **On the default branch, move the work to a new branch.** If the current branch is the default branch and it has uncommitted changes or commits its remote doesn't have, run `git switch -c shift/<topic-slug>` (the topic from step 3, lowercase, words joined by dashes) and carry on there. The local commits on the default branch come along on the new branch. Put one item on the pending list: "the local `<default>` is ahead of `origin/<default>`. Next: reset it to `origin/<default>` once the `shift/<topic-slug>` work is merged." Never push to the default branch.
 
-**Then, on the working branch:**
+**Then, on the working branch.** Run each git step below as its own command, never chained with `&&`, so a refusal stops only that step. If a permission rule or the auto-mode classifier denies a step, don't retry it, reword it or work around it. Put it on the pending list with the next step "approve it in the conversation, or run `<the command>` yourself", carry on with the steps that don't depend on it, and still hand off. A denied commit means nothing to push. A denied push leaves the branch committed locally, and the handoff says so.
+
 
 1. **Commit.** Stage the changes, except held-back files, and commit with a message that says what the work is and that it's a handoff, following any commit conventions in the project's CLAUDE.md. A half-finished state is fine to commit: the handoff says what's unfinished. Don't commit stashes; list them as pending.
 2. **Scan the branch.** Read `git diff origin/<default>...<branch>`, which now includes the handoff commit. If anything in it holds a secret, don't push the branch. Put it on the pending list with the file and the kind of secret, and the next step of removing it from the branch's history.
@@ -112,7 +113,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/context-check.py" --mark-handed-off
 
 ## 6. Cleanup, then archive or stop
 
-Run `/simplicity:cleanup` (the command is `/simplicity:cleanup`, never bare `/cleanup`) and follow its checklist with these changes, since this skill decides what happens next:
+Run `/simplicity:cleanup` (the command is `/simplicity:cleanup`, never bare `/cleanup`): load it with the Skill tool and follow its checklist, rather than running similar checks from memory. Follow it with these changes, since this skill decides what happens next:
 
 - Wherever cleanup says to ask the user, add the item to the pending list instead.
 - Its working-tree findings come after step 1, so anything it still flags is pending.
