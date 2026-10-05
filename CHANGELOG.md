@@ -197,7 +197,21 @@ suggests it once context use reaches a threshold.
       happens.
     - **Cleanup skipped.** The model never loaded `/simplicity:cleanup`
       in that run. Step 6 now says to load it with the Skill tool.
-  - **Not repeated** after these two fixes: the shift and the evals.
+  - **A third shift, in auto mode with no approval.**
+    - With each git step run on its own, only the commit was refused.
+    - Sonnet 5.5 still stopped to ask how to proceed. It finished only
+      when told "hand off now with the commit left as pending".
+    - From there the pending path behaved:
+      - it created the chip;
+      - it renamed the parent "… -> Handed Off" and left it open;
+      - it loaded `/simplicity:cleanup` with the Skill tool;
+      - it ended with a Still to do list whose commit and push items
+        each had a Next step;
+      - the handoff had no archive line.
+    - So step 1 now says a denial never ends the shift and never turns
+      into a question.
+  - **Not repeated** after that last wording change: the shift and the
+    evals.
 
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
 the hook-triggered path in the desktop app, and the automatic-start path,
