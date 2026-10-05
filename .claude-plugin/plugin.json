@@ -1,6 +1,6 @@
 {
   "name": "simplicity",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Session ergonomics for Claude Code: /simplicity:just-ask collects every open question in the session and asks them through AskUserQuestion with a recommended option and reasoning; /simplicity:just-say-it re-states the latest response(s) as a short plain-language numbered list; /simplicity:what-now takes stock of the session and lists what's done, where the current task stands and the next steps; /simplicity:just-finish-it pushes this session's work, merges the PRs whose CI is green, runs /simplicity:cleanup and archives the session, or reports what's still pending; /simplicity:cleanup runs an end-of-session closing checklist; /simplicity:rename-session renames the session after what it was actually about; /simplicity:promptfy rewrites a prompt into a stronger one and hands it back without running it.",
   "author": {
     "name": "EONRaider",

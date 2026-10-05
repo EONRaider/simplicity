@@ -1,6 +1,6 @@
 # simplicity
 
-Small Claude Code skills for long sessions. The three `just-*` commands, `what-now`, `rename-session` and `promptfy` never fire on their own. You call them when you need them. `cleanup` can also run when you ask Claude to wrap a session up.
+Small Claude Code skills for long sessions. None of them fires on its own. You call them when you need them, by typing the command or by naming it in a sentence. `cleanup` can also run when you ask Claude to wrap a session up.
 
 | Command | What it does |
 |---|---|
@@ -27,6 +27,7 @@ claude --plugin-dir /path/to/simplicity
 
 ## Notes
 
+- Claude Code runs a typed command only when it starts the message. Named anywhere else ("can you run `/simplicity:what-now`?"), the command reaches Claude as plain text, and Claude loads the skill itself. That works for every skill except `just-finish-it`, which pushes and merges, so it runs only when typed as the first thing in a message. Named mid-sentence, Claude can't load it and may tell you it isn't installed. It is installed: send `/simplicity:just-finish-it` as its own message.
 - `AskUserQuestion` exists only in Claude Code. On other surfaces, `just-ask` falls back to a numbered markdown list with the same recommendations.
 - `just-finish-it` needs `git`, plus an authenticated `gh` or the GitHub MCP server's tools (cloud sessions often have only the MCP server). On the MCP path it can't always see a merge queue. If the default branch is protected and the server's `governance` toolset doesn't show one, it takes the answer your CLAUDE.md or CONTRIBUTING states, and asks you only when neither says, once per run. If GitHub then refuses the merge because of a queue, the PR goes on "Still to do" for you to enqueue. The MCP server has no branch-delete tool, so a merged branch the repo doesn't auto-delete goes on the "Still to do" list. Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
 - `cleanup`'s session steps (stopping background tasks, messaging other sessions, retitling, archiving) use the desktop app's session tools. In the CLI it skips them, says so, and ends at "ready to close".
@@ -36,7 +37,7 @@ claude --plugin-dir /path/to/simplicity
 
 ## Evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 26 evals across the seven skills. `cleanup` also ships a 20-query trigger set for its description (`skills/cleanup/evals/trigger_eval_set.json`). To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. Every eval runs with and without the skill on Haiku, Sonnet and Opus, so `--runs 5` (the smoke preset the CHANGELOG uses) is 780 runs. `--runs` defaults to 1 (156 runs); `--skills`, `--models`, `--evals` and `--configs` narrow the set.
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 31 evals across the seven skills. `cleanup` also ships a 20-query trigger set for its description (`skills/cleanup/evals/trigger_eval_set.json`), and the five skills you can name mid-sentence ship a 10-query set each that checks they run when named and stay quiet when paraphrased. To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p` call, so it counts against your Claude plan's usage limits, or bills your API key if one is configured. Every eval runs with and without the skill on Haiku, Sonnet and Opus, so `--runs 5` (the smoke preset the CHANGELOG uses) is 930 runs. `--runs` defaults to 1 (186 runs); `--skills`, `--models`, `--evals` and `--configs` narrow the set.
 
 ```bash
 python3 scripts/run_evals.py --iteration my-run --runs 5
