@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:promptfy fix the login bug",
+    "should_trigger": true
+  },
+  {
+    "query": "can you /simplicity:promptfy this before I send it: add retries to the uploader",
+    "should_trigger": true
+  },
+  {
+    "query": "run promptfy on my last prompt",
+    "should_trigger": true
+  },
+  {
+    "query": "please /simplicity:promptfy that",
+    "should_trigger": true
+  },
+  {
+    "query": "use promptfy on: write tests for the parser",
+    "should_trigger": true
+  },
+  {
+    "query": "improve this prompt: fix the login bug",
+    "should_trigger": false
+  },
+  {
+    "query": "make my prompt better",
+    "should_trigger": false
+  },
+  {
+    "query": "rewrite this so Claude understands it: add retries",
+    "should_trigger": false
+  },
+  {
+    "query": "help me word this request",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:just-ask ?",
+    "should_trigger": false
+  }
+]

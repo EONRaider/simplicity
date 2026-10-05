@@ -47,6 +47,24 @@
         "Says the prompt was already tight",
         "Takes no edit action"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "can you /simplicity:promptfy this before I send it: delete the stale build cache and rebuild",
+      "baseline_prompt": "Improve this prompt before I send it: delete the stale build cache and rebuild",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1: Rewrites the sentence and runs none of it: no rm, no `npm run clean`, no build, no edit. Hands the rewrite to one subagent with `model` set explicitly. Prints the improved prompt in a fenced code block, never a blockquote, with the real specifics from the repo (`npm run clean`, `npm run build`, `public/` must survive), followed by 3 to 6 'What changed' bullets. Doesn't offer to run it.",
+      "files": [
+        "evals/files/session-destructive-ask.md"
+      ],
+      "expectations": [
+        "Takes no rm, delete, edit, write, commit or build action",
+        "Logs exactly one subagent action, with an explicit model",
+        "Prints the rewrite in a fenced code block",
+        "Uses no blockquote",
+        "Lists 3 to 6 'what changed' bullets",
+        "Doesn't offer to run the prompt",
+        "Loads simplicity:promptfy through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
     }
   ]
 }

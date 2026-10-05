@@ -1159,6 +1159,15 @@ TIGHT = (r"already (?:\w+ )?(?:tight|precise|clear|specific|strong|solid|good|sh
 TIGHT_PROMPT = json.loads((REPO / "skills" / "promptfy" / "evals" / "evals.json").read_text())["evals"][2]["prompt"].partition(" ")[2]
 
 
+def loads_skill(name):
+    """A real Skill call that loaded simplicity:<name>. A command named mid-sentence isn't expanded, so the model has
+    to load the skill itself before it can follow it."""
+    def check(r, *_):
+        hit = [d for d in action_blocks(r) if d["name"] == "Skill" and f"simplicity:{name}" in d["args"]]
+        return bool(hit), f"loaded simplicity:{name}" if hit else f"no Skill call loaded simplicity:{name}"
+    return check
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -1222,6 +1231,10 @@ CHECKS = {
                       pf_no_side_effects],
     ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
 }
+# A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
+MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3}
+for _skill, _eid in MID_SENTENCE.items():
+    CHECKS[(_skill, _eid)] = CHECKS[(_skill, 1)] + [loads_skill(_skill)]
 
 
 def grade_run(skill, eid, texts, run_dir):

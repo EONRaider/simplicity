@@ -29,6 +29,23 @@
       "expectations": [
         "The title is 'checkout retry bug' in any capitalisation except ALL CAPS"
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "nice work, now /simplicity:rename-session please",
+      "baseline_prompt": "Rename this session after what it was actually about.",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1: Renames the session once, to a 2 to 5 word sentence-case title, never ALL CAPS, that names where the session ended up, the CI matrix migration, and not the flaky test it opened on. Confirms the new name in one line, says the pane header may show the old title until the session is reopened, and doesn't rename a second time.",
+      "files": [
+        "evals/files/session-pivot.md"
+      ],
+      "expectations": [
+        "Takes exactly one rename action",
+        "The title is 2 to 5 words, not all caps, with no dash and no session, chat or work",
+        "The title names the destination (the CI matrix), not the origin (the flaky test)",
+        "Confirms the new name in one line",
+        "Doesn't rename a second time",
+        "Loads simplicity:rename-session through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
     }
   ]
 }

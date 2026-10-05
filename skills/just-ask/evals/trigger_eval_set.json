@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:just-ask",
+    "should_trigger": true
+  },
+  {
+    "query": "ok, run /simplicity:just-ask before you continue",
+    "should_trigger": true
+  },
+  {
+    "query": "run just-ask",
+    "should_trigger": true
+  },
+  {
+    "query": "can you do /simplicity:just-ask for the database part?",
+    "should_trigger": true
+  },
+  {
+    "query": "use the just-ask skill",
+    "should_trigger": true
+  },
+  {
+    "query": "any open questions?",
+    "should_trigger": false
+  },
+  {
+    "query": "ask me whatever you need before continuing",
+    "should_trigger": false
+  },
+  {
+    "query": "what do you still need from me?",
+    "should_trigger": false
+  },
+  {
+    "query": "what decisions are still open?",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:promptfy ?",
+    "should_trigger": false
+  }
+]

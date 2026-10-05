@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:rename-session",
+    "should_trigger": true
+  },
+  {
+    "query": "nice work, now /simplicity:rename-session please",
+    "should_trigger": true
+  },
+  {
+    "query": "run rename-session",
+    "should_trigger": true
+  },
+  {
+    "query": "can you /simplicity:rename-session to checkout retry bug?",
+    "should_trigger": true
+  },
+  {
+    "query": "use the rename-session skill",
+    "should_trigger": true
+  },
+  {
+    "query": "rename this session",
+    "should_trigger": false
+  },
+  {
+    "query": "give this chat a better title",
+    "should_trigger": false
+  },
+  {
+    "query": "what should we call this session?",
+    "should_trigger": false
+  },
+  {
+    "query": "rename the variable session to sess",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:what-now ?",
+    "should_trigger": false
+  }
+]
