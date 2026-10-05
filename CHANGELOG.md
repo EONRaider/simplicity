@@ -50,11 +50,10 @@ suggests it once context use reaches a threshold.
   - `move_to_cloud` moves this conversation instead of starting a fresh
     one.
 - **Two deliberate departures from a literal reading:**
-  - **With a chip, the parent doesn't archive itself.** An unclicked chip
-    belongs to its session, and archiving could take it away. This is an
-    inference, not tested. Instead, the handoff's last line asks the
-    child to archive the parent once it runs, and the app asks you to
-    approve.
+  - **With a chip, the parent doesn't archive itself.** Archiving a
+    session removes its unclicked chip (tested, see Evidence), which would
+    lose the handoff. Instead, the handoff's last line asks the child to
+    archive the parent once it runs, and the app asks you to approve.
   - **Work on the default branch moves to `shift/<topic>`** rather than
     staying uncommitted, so a child in a fresh worktree can see it. The
     local default branch's extra commits are listed as pending.
@@ -151,8 +150,39 @@ suggests it once context use reaches a threshold.
   gitleaks 8.21.2. The two secret seeds use fake low-entropy values, since
   key-shaped ones trip the scan.
 
+- **Desktop app 2.9939.4 (Claude Code 2.1.284), 2026-10-05: two live
+  tests in a throwaway repo** whose `origin` was a local bare repo. The
+  plugin was loaded from a local marketplace through that repo's project
+  settings.
+  - **Chip survival.** A session created a chip (`spawn_task` returned
+    its task id), then archived itself. Afterwards there was no chip to
+    click. That's why the parent leaves archiving to the child.
+  - **A full shift.** The user typed `/simplicity:shift-session` in a
+    session with an uncommitted file on `main`, and every step ran:
+    - it moved the work to `shift/draft-sandbox-release-notes`,
+      committed it and pushed it, with `main` untouched and no PR;
+    - it skipped all five trackers and said why;
+    - it created the Part 2 chip;
+    - it renamed itself "… -> Handed Off" and wrote the handed-off marker;
+    - it ran `/simplicity:cleanup` and stayed open for the chip.
+    The child renamed itself "… -> Part 2" and archived the parent.
+  - **Three fixes came out of the full shift:**
+    - **Archive timing.** The child's first archive was refused because
+      the parent was still finishing its turn. The archive line now has
+      the child wait about 30 seconds (a background `sleep`), then retry,
+      up to three tries, before handing it back to the user.
+    - **Escaped titles.** The app stores `->` in titles HTML-escaped as
+      `-&gt;`. Step 3 now reads `-&gt;` and `→` as `->`, so Part N still
+      counts up. The chip list showed the title as "-' Part 2"; the
+      session title itself was right.
+    - **Step 0 arguments.** Claude Code substitutes `$ARGUMENTS` in the
+      skill text, which turned step 0's check into "`` doesn't hold
+      `--auto`". Step 0 now quotes the arguments it was given.
+  - **Not repeated** after these three wording fixes: the shift itself and the evals.
+
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
-and the shift end to end in a real desktop session.
+the hook-triggered path in the desktop app, and the automatic-start path,
+since this app build has no automatic start tool.
 
 ## [v0.8.1] - 2026-10-05
 

@@ -13,13 +13,15 @@ Close this session out safely and hand its work to a fresh child session, so the
 
 Keep a running **pending list** from step 1 on. Anything that stops a step from finishing cleanly goes on it. The pending list goes into the handoff prompt and decides step 6. Never repeat a secret's value anywhere, including the pending list and the handoff.
 
-If the session is in plan mode, stop and say that this command commits and pushes, so it can't run in plan mode. If this session's title already ends in "-> Handed Off", stop and say it was handed off already: the work continues in its child.
+If the session is in plan mode, stop and say that this command commits and pushes, so it can't run in plan mode. If this session's title already ends in "-> Handed Off" (or "-&gt; Handed Off", as the app may return it), stop and say it was handed off already: the work continues in its child.
 
 ## 0. Manual or automatic
 
-**Manual run.** The user asked for the command by name: their latest message is `/simplicity:shift-session`, with or without arguments, or names it mid-sentence ("can you run /simplicity:shift-session --pr?"), and `$ARGUMENTS` doesn't hold `--auto`. Asking for it by name is the user's go-ahead for the whole shift: committing, pushing, updating trackers, starting the child, renaming, cleanup and archiving. Don't ask for confirmation.
+The arguments this run was given: "$ARGUMENTS". They're empty when there were none.
 
-**Automatic run.** Anything else: `$ARGUMENTS` holds `--auto`, or the skill was invoked because the simplicity context hook said the context reached the threshold. Before anything is committed, pushed or written anywhere, ask the user once with `AskUserQuestion`:
+**Manual run.** The user asked for the command by name: their latest message is `/simplicity:shift-session`, with or without arguments, or names it mid-sentence ("can you run /simplicity:shift-session --pr?"), and the arguments don't include `--auto`. Asking for it by name is the user's go-ahead for the whole shift: committing, pushing, updating trackers, starting the child, renaming, cleanup and archiving. Don't ask for confirmation.
+
+**Automatic run.** Anything else: the arguments include `--auto`, or the skill was invoked because the simplicity context hook said the context reached the threshold. Before anything is committed, pushed or written anywhere, ask the user once with `AskUserQuestion`:
 
 - question: "Context is at <percent>%. Shift this session to a fresh one now?" Take the percent from the hook's message, or from the app's usage tool if one exists.
 - options: "Shift now (Recommended)", described as committing and pushing the work, commenting on the trackers the project has (comments can notify their watchers) and starting the child; and "Not now", described as continuing here, with the hook asking again 10 points later.
@@ -63,7 +65,7 @@ A tracker update that fails goes on the pending list. It doesn't stop the shift.
 
 ## 3. Write the handoff prompt
 
-**Topic and part number.** Read this session's title (`get_session` with `"self"` in the desktop app). If it reads `<topic> -> Part N`, keep that topic and use N+1. If it's a specific title someone chose or the app generated from the work, use it as the topic as it is. Only when there's no title, or a generic one such as "New session", name the topic the way `/simplicity:rename-session` does (2 to 5 words, sentence case, what the work is really about). Then use Part 2. The `<topic> -> Part N` and `<topic> -> Handed Off` formats are deliberate, and they override `rename-session`'s rules for these two titles only, dashes included.
+**Topic and part number.** Read this session's title (`get_session` with `"self"` in the desktop app). The app may return `->` HTML-escaped as `-&gt;`, or as `→`; read all three as `->`, and always write titles with a plain `->`. If it reads `<topic> -> Part N`, keep that topic and use N+1. If it's a specific title someone chose or the app generated from the work, use it as the topic as it is. Only when there's no title, or a generic one such as "New session", name the topic the way `/simplicity:rename-session` does (2 to 5 words, sentence case, what the work is really about). Then use Part 2. The `<topic> -> Part N` and `<topic> -> Handed Off` formats are deliberate, and they override `rename-session`'s rules for these two titles only, dashes included.
 
 Write one prompt that a fresh session can act on without reading this transcript. Write it to the child, in plain markdown:
 
@@ -74,7 +76,7 @@ Write one prompt that a fresh session can act on without reading this transcript
 - **Repository state**: for each repo, its path, the branch, whether it's pushed and at which SHA, the PR if any, and anything left uncommitted. A child in the desktop app may start in a fresh worktree, so tell it which branch to check out.
 - **Next step**: the one concrete action to take first.
 - **Context**: decisions made, constraints the user stated, and approaches tried that failed. Only what the child needs.
-- Last line, only when step 4 will use a chip and the pending list is empty: "Once you're running, archive the parent session `<this session's id>` with the session-archive tool. It has nothing pending."
+- Last line, only when step 4 will use a chip and the pending list is empty: "Once you're running, archive the parent session `<this session's id>` with the session-archive tool. It has nothing pending. It may still be finishing its last turn when you start. If the archive is refused because it's still working, wait about 30 seconds without blocking (run `sleep 30` as a background command, which notifies you when it ends), then try again. Try up to three times in all; if it's still refused, tell the user it can be archived from the sidebar once it's idle."
 
 Wherever the prompt goes in step 4, pass its full text. Never pass a placeholder or a reference such as "the prompt above": the child sees only what it's given.
 
