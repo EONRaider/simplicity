@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:what-now",
+    "should_trigger": true
+  },
+  {
+    "query": "before I go on, can you run /simplicity:what-now ?",
+    "should_trigger": true
+  },
+  {
+    "query": "run what-now",
+    "should_trigger": true
+  },
+  {
+    "query": "quick /simplicity:what-now please",
+    "should_trigger": true
+  },
+  {
+    "query": "use the what-now skill",
+    "should_trigger": true
+  },
+  {
+    "query": "where are we?",
+    "should_trigger": false
+  },
+  {
+    "query": "what's left to do?",
+    "should_trigger": false
+  },
+  {
+    "query": "give me a status update",
+    "should_trigger": false
+  },
+  {
+    "query": "what did we finish today?",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:just-say-it ?",
+    "should_trigger": false
+  }
+]

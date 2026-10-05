@@ -1,11 +1,10 @@
 ---
 name: promptfy
-description: Rewrites a prompt into a stronger one before the user sends it, using the most capable model and the session's real context, then prints it in a code block and stops. It never runs the prompt. With no argument it rewrites the last prompt the user typed in this session. Invoked by the user as /simplicity:promptfy [prompt].
-disable-model-invocation: true
+description: Rewrites a prompt into a stronger one before the user sends it, using the most capable model and the session's real context, then prints it in a code block and stops. It never runs the prompt. With no argument it rewrites the last prompt the user typed in this session. Invoked by the user as /simplicity:promptfy [prompt]. Use it only when the user names /simplicity:promptfy or asks for promptfy by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[prompt]"
 allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/last-prompt.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)
-compatibility: Claude Code (uses the Claude Code-only disable-model-invocation and argument-hint fields, a subagent and AskUserQuestion). The no-argument case needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
+compatibility: Claude Code (uses the Claude Code-only argument-hint field, a subagent and AskUserQuestion). The no-argument case needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
 ---
 
 Rewrite the user's prompt into a better prompt. Print the result. Stop there.
@@ -21,6 +20,7 @@ fails badly, so hold the line even when the task looks trivial and obvious.
 |---|---|
 | `/simplicity:promptfy <text>` | that text, exactly as typed |
 | `/simplicity:promptfy` with no argument | the last prompt the user typed in this session |
+| named mid-sentence ("run /simplicity:promptfy on that") | the prompt the message gives; if it gives none, the last prompt before that message |
 
 For the bare case:
 
@@ -142,7 +142,7 @@ Adapted from `ultra-prompt` by [voidharbor](https://github.com/voidharbor), [voi
 
 - The command is now a skill: `commands/ultra-prompt.md` became this `SKILL.md`, and the helper moved to `scripts/` beside it.
 - It is renamed from `ultra-prompt` to `promptfy`, and invoked as `/simplicity:promptfy`.
-- It is user-invoked only (`disable-model-invocation: true`).
+- The model may invoke it, but only when the user names it, so a mid-sentence `/simplicity:promptfy` still runs. Upstream's command could only be typed.
 - The text adds two things upstream doesn't have: a check, before the subagent, that returns an already tight prompt as typed, and the ` (Recommended)` label on the first option of each question.
 - `allowed-tools` lets the skill run its own helper script without a permission prompt.
 - The helper script was hardened with the same behavior, except that it now skips `/promptfy` and `/simplicity:promptfy` instead of upstream's own commands: pathlib, type hints, docstrings, errors on stderr with a nonzero exit, and unit tests.

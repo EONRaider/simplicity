@@ -125,6 +125,38 @@ def test_skips_promptfy_itself(home: Path, name: str) -> None:
     assert prompts(run().stdout) == ["fix the footer"]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "can you run /simplicity:promptfy ?",
+        "/promptfy",
+        "ok, now /promptfy that last one",
+        "please (/simplicity:promptfy) before I send it",
+    ],
+)
+def test_skips_a_typed_mention_of_promptfy(home: Path, text: str) -> None:
+    # Named mid-sentence, the command isn't expanded: it reaches the transcript
+    # as plain text and the model invokes the skill itself. That message asks
+    # for the rewrite, so it is never the prompt to rewrite.
+    write_transcript(home, [user("fix the footer", 1), user(text, 2)])
+
+    assert prompts(run().stdout) == ["fix the footer"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "rename promptfy to sharpen",
+        "fix the typo in skills/promptfy/SKILL.md",
+        "add a /promptfy-all command",
+    ],
+)
+def test_keeps_prompts_that_only_resemble_the_command(home: Path, text: str) -> None:
+    write_transcript(home, [user("fix the footer", 1), user(text, 2)])
+
+    assert prompts(run().stdout) == [text]
+
+
 def test_filters_tool_results(home: Path) -> None:
     result_block = {"type": "tool_result", "tool_use_id": "t1", "content": "ok"}
     mixed = [{"type": "text", "text": "not typed"}, result_block]

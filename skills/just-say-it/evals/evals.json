@@ -55,6 +55,25 @@
         "Covers the storage adapter, presigned URLs, and the checksum-verified migration",
         "Ends by naming the two open decisions (provider, local fallback)"
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "that was a lot, please /simplicity:just-say-it",
+      "baseline_prompt": "Summarize your last response.",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1: A numbered list with no preamble, each item a bold short label plus one plain sentence, covering the four causes (N+1 queries, blocking carousel, oversized hero image, session-keyed cache) and the suggested order. No hedging filler, no new information.",
+      "files": [
+        "evals/files/session-long-response.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers all four causes: N+1 queries, the blocking carousel, the hero image, the session-keyed cache",
+        "No open-decisions line (nothing is left open)",
+        "Loads simplicity:just-say-it through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
     }
   ]
 }

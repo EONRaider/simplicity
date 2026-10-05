@@ -5,6 +5,80 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.8.0] - 2026-10-05
+
+A command named mid-sentence now runs. Claude Code runs a typed command
+only when it starts the message; anywhere else it reaches Claude as plain
+text. Five skills can now be loaded by Claude when you name them that way.
+
+### Fixed
+
+- **A command named mid-sentence was reported as not installed.** "Can you
+  run `/simplicity:just-ask`?" isn't expanded, and Claude couldn't load a
+  skill marked `disable-model-invocation`. It also couldn't see one in its
+  skill list, so it told the user the plugin might not be installed.
+  `what-now`, `just-say-it`, `just-ask`, `promptfy` and `rename-session`
+  drop the flag. Found in a session that asked for two of them
+  mid-sentence and was told neither existed.
+- **`promptfy` with no argument could rewrite its own request.** Loaded
+  from "can you `/simplicity:promptfy` that?", the helper would have
+  returned that message as the prompt to rewrite. `last-prompt.py` now
+  skips any typed message that names `/promptfy` or
+  `/simplicity:promptfy`. Paths and longer names such as `/promptfy-all`
+  don't match. Tests cover both cases, and the new ones failed before the
+  fix.
+
+### Changed
+
+- **The five skills still fire only when named.** Each description ends
+  with one sentence: Claude uses it when you name it, mid-sentence
+  included, and never on a paraphrase of what it does.
+- **`just-finish-it` keeps `disable-model-invocation`.** It pushes, merges
+  and archives, so it runs only when typed as the first thing in a
+  message. The README says what to do when Claude says it isn't installed.
+- **Named mid-sentence, `promptfy` and `rename-session` ask before they
+  load.** Both declare `allowed-tools` for their helper scripts, and a
+  skill Claude loads itself asks first when it does. The helper call may
+  ask too. Typed as the command, neither asks.
+- **Evals.** Each of the five skills gets one eval that names it
+  mid-sentence. It reuses the first eval's seed and checks and adds one:
+  the skill is loaded through the `Skill` tool. Each also gets a 10-query
+  trigger set. With-skill runs pass `--allowedTools Skill`, standing in
+  for the user approving the load. The grader drops real `Skill` calls
+  from the response before its format checks, because loading a skill
+  isn't output the user sees.
+
+### Evidence
+
+- **Headless, before and after:** "can you run `/simplicity:what-now` ?"
+  and "please do `/simplicity:just-say-it` for that", with `--plugin-dir`.
+  Before, both were answered with "isn't in the skills available". After,
+  both loaded the skill. "ok, now `/simplicity:just-finish-it` please"
+  still didn't run, and "where are we?" loaded nothing.
+- **Evals:** the 19 evals of the five skills, with the skill only, once
+  per model on the harness's `haiku`, `sonnet` and `opus` aliases (57
+  runs, `--runs 1`). The two mid-sentence evals the first harness blocked
+  were re-run after the `--allowedTools` fix.
+
+| Evals | Haiku | Sonnet | Opus | Total |
+|---|---|---|---|---|
+| existing (typed command) | 81/85 | 85/85 | 85/85 | 251/255 |
+| new (named mid-sentence) | 40/41 | 41/41 | 41/41 | 122/123 |
+
+  Haiku's misses on the existing evals are the ones each skill's Lifecycle
+  section already records, or a label over four words in `what-now`. Its
+  mid-sentence miss: `what-now` numbered the Next list without bold
+  labels.
+- **Trigger sets:** SkillArtisan's description optimizer, measuring only
+  (`--max-iterations 1 --holdout 0`), three runs per query on the `sonnet`
+  alias: 50 of 50 queries passed. Every named form triggered, and no
+  paraphrase or other skill's name did. The optimizer loads a skill on its
+  own, not inside the plugin, so the headless runs above are the
+  end-to-end check.
+
+Not run: the baseline configuration, and the trigger sets on Haiku and
+Opus. Not checked: the permission prompts in the desktop app.
+
 ## [v0.7.2] - 2026-10-03
 
 `rename-session` now works in the desktop app, and its titles are no
@@ -679,7 +753,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/EONRaider/simplicity/compare/v0.7.2...v0.8.0
 [v0.7.2]: https://github.com/EONRaider/simplicity/compare/v0.7.1...v0.7.2
 [v0.7.1]: https://github.com/EONRaider/simplicity/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/EONRaider/simplicity/compare/v0.6.0...v0.7.0

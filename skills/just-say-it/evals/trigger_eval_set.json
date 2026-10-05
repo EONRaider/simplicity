@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:just-say-it",
+    "should_trigger": true
+  },
+  {
+    "query": "that was a lot, please /simplicity:just-say-it",
+    "should_trigger": true
+  },
+  {
+    "query": "run just-say-it on your last answer",
+    "should_trigger": true
+  },
+  {
+    "query": "can you /simplicity:just-say-it the caching plan?",
+    "should_trigger": true
+  },
+  {
+    "query": "use just-say-it",
+    "should_trigger": true
+  },
+  {
+    "query": "summarize that",
+    "should_trigger": false
+  },
+  {
+    "query": "tl;dr please",
+    "should_trigger": false
+  },
+  {
+    "query": "say that again but shorter",
+    "should_trigger": false
+  },
+  {
+    "query": "explain your last answer in plain words",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:what-now ?",
+    "should_trigger": false
+  }
+]

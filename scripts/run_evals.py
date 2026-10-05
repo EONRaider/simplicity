@@ -44,7 +44,8 @@ AUQ_NOTE = NO_REPO_NOTE + (
 ACTIONS_NOTE = (
     "\n\nEVAL HARNESS NOTE: this is a headless evaluation with no access to the repositories or GitHub. You can't "
     "run any tool, except Skill to load a different skill that your instructions tell you to run; the user's "
-    "latest message is already loaded and doesn't need it. The 'Live state' section above is the current result "
+    "latest message is already loaded and doesn't need it, unless it names a skill as plain text, "
+    "mid-sentence. The 'Live state' section above is the current result "
     "of every read-only command; treat it as live. Every time you would run any other command or tool (git, gh, file edits, a "
     "session tool such as archiving, renaming this session, stopping a background task, or messaging another "
     "session), output it instead as one fenced ```json block of the form {\"action\": \"<tool or program>\", "
@@ -113,7 +114,9 @@ def run_one(job):
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
            "--output-format", "stream-json", "--verbose"] + ISOLATION
     if config == "with_skill":
-        cmd += ["--plugin-dir", str(REPO)]
+        # A skill the model loads itself, rather than one the user typed, asks before it loads when it declares
+        # allowed-tools. Allowing Skill stands in for the user approving that prompt.
+        cmd += ["--plugin-dir", str(REPO), "--allowedTools", "Skill"]
     start, t0 = now(), time.time()
     with tempfile.TemporaryDirectory() as cwd:
         try:

@@ -153,8 +153,19 @@ def ask_no_payload(r, qs, p):
 ITEM = re.compile(r"^\d+\.\s+\*\*[^*]+?\*\*(?:\s*[—–:-]|(?<=:\*\*))\s*\S")
 
 
+def is_skill_load(block):
+    """A fenced block holding a real Skill call: loading a skill is a tool call, not output the user reads."""
+    try:
+        d = json.loads(block)
+    except json.JSONDecodeError:
+        return False
+    return is_action(d) and d["action"] == "Skill" and bool(d.get("real_tool_call"))
+
+
 def lines(r):
-    return [l for l in r.strip().splitlines() if l.strip()]
+    """The response's non-blank lines, without real Skill calls, so format checks don't count a skill load."""
+    shown = FENCE.sub(lambda m: "" if is_skill_load(m.group(1)) else m.group(0), r)
+    return [l for l in shown.strip().splitlines() if l.strip()]
 
 
 def say_no_preamble(r, meta):
@@ -1159,6 +1170,15 @@ TIGHT = (r"already (?:\w+ )?(?:tight|precise|clear|specific|strong|solid|good|sh
 TIGHT_PROMPT = json.loads((REPO / "skills" / "promptfy" / "evals" / "evals.json").read_text())["evals"][2]["prompt"].partition(" ")[2]
 
 
+def loads_skill(name):
+    """A real Skill call that loaded simplicity:<name>. A command named mid-sentence isn't expanded, so the model has
+    to load the skill itself before it can follow it."""
+    def check(r, *_):
+        hit = [d for d in action_blocks(r) if d["name"] == "Skill" and f"simplicity:{name}" in d["args"]]
+        return bool(hit), f"loaded simplicity:{name}" if hit else f"no Skill call loaded simplicity:{name}"
+    return check
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -1222,6 +1242,9 @@ CHECKS = {
                       pf_no_side_effects],
     ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
 }
+# A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
+MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3}
+CHECKS.update({(skill, eid): CHECKS[(skill, 1)] + [loads_skill(skill)] for skill, eid in MID_SENTENCE.items()})
 
 
 def grade_run(skill, eid, texts, run_dir):
