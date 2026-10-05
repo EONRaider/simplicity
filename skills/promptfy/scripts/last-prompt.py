@@ -6,7 +6,8 @@ License: MIT, Copyright (c) 2026 voidharbor (see the LICENSE file beside this
 skill's SKILL.md).
 Modified for simplicity: the skipped meta-commands are now /promptfy and
 /simplicity:promptfy (upstream skipped its own commands, ultra-prompt among
-them); otherwise the same behavior, restructured to pathlib, full type hints,
+them), and a typed message that names either one anywhere is skipped too;
+otherwise the same behavior, restructured to pathlib, full type hints,
 Google-style docstrings and a ``main(argv) -> int`` entry point that reports
 errors on stderr with a nonzero exit status.
 
@@ -27,8 +28,8 @@ from what the model can see. The .jsonl on disk still has it exactly as typed.
 What counts as "a prompt": anything the user sent by hand, including slash
 commands (shown as "/name args"). Deliberately NOT counted: tool results,
 system-injected messages, subagent chatter, command stdout, and promptfy
-itself -- otherwise a bare /simplicity:promptfy would just report
-/simplicity:promptfy.
+itself, typed as a command or named anywhere in a message -- otherwise a bare
+/simplicity:promptfy would just report /simplicity:promptfy.
 
 Transcripts are only ever read, never written.
 """
@@ -66,6 +67,13 @@ NOISE_TAGS = ("<local-command-stdout>", "<local-command-stderr>", "<bash-stdout>
 # would just echo the question back. A plugin skill is recorded under its
 # namespaced name, so both forms are listed.
 SELF_COMMANDS = frozenset({"/promptfy", "/simplicity:promptfy"})
+
+# Either meta-command typed as plain text. A command named mid-sentence isn't
+# expanded, so the model invokes the skill itself and the message reaches the
+# transcript as typed. It asks for the rewrite; it is never the prompt to
+# rewrite. The lookarounds keep paths ("skills/promptfy/") and longer names
+# ("/promptfy-all") from matching.
+SELF_MENTION = re.compile(r"(?<![\w/:.-])/(?:simplicity:)?promptfy(?![\w-])")
 
 Record = dict[str, typing.Any]
 
@@ -207,6 +215,8 @@ def as_prompt(record: Record) -> str | None:
         return f"{command} {args}".strip()
 
     text = SYSTEM_REMINDER.sub("", text).strip()
+    if SELF_MENTION.search(text):
+        return None  # a typed request for promptfy, not the prompt to rewrite
     return text or None
 
 
