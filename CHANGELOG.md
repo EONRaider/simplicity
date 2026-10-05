@@ -221,11 +221,23 @@ suggests it once context use reaches a threshold.
     in part because of that earlier instruction, so a real session may
     not hit the refusal at all. The non-blocking behavior is verified
     either way.
-  - **Not repeated** after the last wording change: the evals.
+  - **The hook path, live.** A fresh sandbox set
+    `SIMPLICITY_SHIFT_THRESHOLD=1`. The session's first tool call wrote a
+    file, and the `PostToolUse` hook reported 6%. Claude then:
+    1. loaded `simplicity:shift-session --auto` on its own;
+    2. asked once with `AskUserQuestion`;
+    3. on "Shift now", ran every git step separately and in order:
+       branch, add, commit, secret scan, push;
+    4. created the Part 2 chip, renamed the parent, wrote the marker and
+       loaded `/simplicity:cleanup`, without another question.
+    Its setup prompt didn't mention committing, and the classifier
+    allowed the commit and the push.
+  - **Not repeated** after the last wording change: the evals. The
+    headless re-run failed to authenticate (an expired OAuth session).
 
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
-the hook-triggered path in the desktop app, and the automatic-start path,
-since this app build has no automatic start tool.
+and the automatic-start path, since this app build has no automatic start
+tool.
 
 ## [v0.8.1] - 2026-10-05
 
