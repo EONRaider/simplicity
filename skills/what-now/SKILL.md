@@ -1,6 +1,6 @@
 ---
 name: what-now
-description: Takes stock of the current session and reports what has been done, where the current task stands, and the next steps to finish it, as three short lists in which every item is a bold label plus one plain sentence. Invoked by the user as /simplicity:what-now. Use it only when the user names /simplicity:what-now or asks for what-now by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
+description: Takes stock of the current session and reports what has been done, where the current task stands, and the next steps to finish it, as three short lists in which every item is a bold label plus one plain sentence. Invoked by the user as /simplicity:what-now. Use when the user names /simplicity:what-now or asks for what-now by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 license: MIT (see plugin root LICENSE)
 compatibility: Claude Code.
 ---

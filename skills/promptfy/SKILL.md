@@ -1,6 +1,6 @@
 ---
 name: promptfy
-description: Rewrites a prompt into a stronger one before the user sends it, using the most capable model and the session's real context, then prints it in a code block and stops. It never runs the prompt. With no argument it rewrites the last prompt the user typed in this session. Invoked by the user as /simplicity:promptfy [prompt]. Use it only when the user names /simplicity:promptfy or asks for promptfy by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
+description: Rewrites a prompt into a stronger one before the user sends it, using the most capable model and the session's real context, then prints it in a code block and stops. It never runs the prompt. With no argument it rewrites the last prompt the user typed in this session. Invoked by the user as /simplicity:promptfy [prompt]. Use when the user names /simplicity:promptfy or asks for promptfy by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[prompt]"
 allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/last-prompt.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)

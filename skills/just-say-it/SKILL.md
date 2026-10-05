@@ -1,6 +1,6 @@
 ---
 name: just-say-it
-description: Re-states the session's latest response, the last N responses, or everything said on a given topic as a short numbered list in plain language. Each item is a bold label plus one plain sentence, with no preamble and no new information. Invoked by the user as /simplicity:just-say-it, optionally with a count ("/simplicity:just-say-it 3") or a topic ("/simplicity:just-say-it caching plan"). Use it only when the user names /simplicity:just-say-it or asks for just-say-it by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
+description: Re-states the session's latest response, the last N responses, or everything said on a given topic as a short numbered list in plain language. Each item is a bold label plus one plain sentence, with no preamble and no new information. Invoked by the user as /simplicity:just-say-it, optionally with a count ("/simplicity:just-say-it 3") or a topic ("/simplicity:just-say-it caching plan"). Use when the user names /simplicity:just-say-it or asks for just-say-it by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[N responses | topic]"
 license: MIT (see plugin root LICENSE)
 compatibility: Claude Code (uses the Claude Code-only argument-hint field).
