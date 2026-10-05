@@ -1,11 +1,10 @@
 ---
 name: rename-session
-description: Renames the current session after what the conversation has actually been about, as a 2 to 5 word sentence-case title that names where the work ended up, so the session is findable later in the resume picker. An argument is used as the topic to name. Invoked by the user as /simplicity:rename-session [topic].
-disable-model-invocation: true
+description: Renames the current session after what the conversation has actually been about, as a 2 to 5 word sentence-case title that names where the work ended up, so the session is findable later in the resume picker. An argument is used as the topic to name. Invoked by the user as /simplicity:rename-session [topic]. Use it only when the user names /simplicity:rename-session or asks for rename-session by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[topic]"
 allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/rename-session.py" *)
 license: MIT, Copyright (c) 2026 voidharbor (see LICENSE in this directory)
-compatibility: Claude Code (uses the Claude Code-only disable-model-invocation and argument-hint fields). In the desktop app it uses the app's session title tool. In the CLI it needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
+compatibility: Claude Code (uses the Claude Code-only argument-hint field). In the desktop app it uses the app's session title tool. In the CLI it needs Python 3, the CLAUDE_CODE_SESSION_ID environment variable and a session transcript on disk.
 ---
 
 Rename this session so it is findable later in the resume picker, at claude.ai/code, and
@@ -74,7 +73,7 @@ never rewritten.
 Adapted from `rename-session` by [voidharbor](https://github.com/voidharbor), [voidharbor/claude-plugins@397b270](https://github.com/voidharbor/claude-plugins/tree/397b2705f8f83958536721ddc557331bd4d2737b/rename-session), MIT.
 
 - The command is now a skill: `commands/rename-session.md` became this `SKILL.md`, and the helper moved to `scripts/` beside it.
-- It is user-invoked only (`disable-model-invocation: true`), as `/simplicity:rename-session`.
+- It runs as `/simplicity:rename-session`, and the model may invoke it, but only when the user names it, so a mid-sentence mention still runs. Upstream's command could only be typed.
 - Titles are in sentence case. Upstream's are ALL CAPS.
 - In the desktop app it renames through the app's session title tool, because the app doesn't read the records the helper writes. Upstream always runs the helper.
 - `allowed-tools` lets the skill run its own helper script without a permission prompt.

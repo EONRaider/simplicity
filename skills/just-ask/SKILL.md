@@ -1,7 +1,6 @@
 ---
 name: just-ask
-description: Sweeps the current session (the user's messages, the plan, the task list, and earlier responses) for every question that is still genuinely open, drops anything answerable without the user, and asks the rest through AskUserQuestion in rounds of up to four, each option carrying a recommendation and the reasoning behind it. Invoked by the user as /simplicity:just-ask, optionally with a focus such as "/simplicity:just-ask database".
-disable-model-invocation: true
+description: Sweeps the current session (the user's messages, the plan, the task list, and earlier responses) for every question that is still genuinely open, drops anything answerable without the user, and asks the rest through AskUserQuestion in rounds of up to four, each option carrying a recommendation and the reasoning behind it. Invoked by the user as /simplicity:just-ask, optionally with a focus such as "/simplicity:just-ask database". Use it only when the user names /simplicity:just-ask or asks for just-ask by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[optional focus]"
 license: MIT (see plugin root LICENSE)
 compatibility: Built for Claude Code, where the AskUserQuestion tool exists. On surfaces without it, falls back to a numbered markdown list carrying the same recommendations and reasoning.
