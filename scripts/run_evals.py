@@ -62,8 +62,12 @@ PROMPTFY_NOTE = ACTIONS_NOTE + (
     "as one fenced ```json block per call (an object with a `questions` array), and stop there to wait for the "
     "answers. That is the only point at which you stop."
 )
+SHIFT_NOTE = ACTIONS_NOTE + (
+    " When you would ask the user something with AskUserQuestion, log the call as an action block with its full "
+    "input, assume the user picked the first option, and carry on."
+)
 NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
-         "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE}
+         "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config", "--tools", "Skill"]
 
 
@@ -110,6 +114,8 @@ def run_one(job):
     out.mkdir(parents=True, exist_ok=True)
     seed = (REPO / "skills" / skill / ev["files"][0]).read_text()
     system = SEED_HEADER + seed + NOTES.get(skill, "")
+    if ev.get("answer"):
+        system += f" In this run the user picks option {ev['answer']} of that question, not the first."
     prompt = ev["prompt"] if config == "with_skill" else ev["baseline_prompt"]
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
            "--output-format", "stream-json", "--verbose"] + ISOLATION
@@ -151,7 +157,7 @@ def run_one(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
-                                                 "rename-session", "promptfy"])
+                                                 "rename-session", "promptfy", "shift-session"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

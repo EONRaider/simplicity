@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:shift-session",
+    "should_trigger": true
+  },
+  {
+    "query": "this is getting long, can you run /simplicity:shift-session ?",
+    "should_trigger": true
+  },
+  {
+    "query": "run shift-session with --pr",
+    "should_trigger": true
+  },
+  {
+    "query": "use the shift-session skill",
+    "should_trigger": true
+  },
+  {
+    "query": "simplicity: this session's context is about 64% full (128,000 of 200,000 tokens), at or above the 60% shift threshold. Before you continue with the user's request, invoke the simplicity:shift-session skill with the argument --auto, unless a shift is already running.",
+    "should_trigger": true
+  },
+  {
+    "query": "hand this off to a new session",
+    "should_trigger": false
+  },
+  {
+    "query": "my context is getting full, what should I do?",
+    "should_trigger": false
+  },
+  {
+    "query": "let's wrap this session up",
+    "should_trigger": false
+  },
+  {
+    "query": "shift the timestamps in the log parser by one hour",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:just-finish-it ?",
+    "should_trigger": false
+  }
+]

@@ -18,6 +18,8 @@ env:
     skills/rename-session/tests/test_rename_session.py
     skills/promptfy/scripts/last-prompt.py
     skills/promptfy/tests/test_last_prompt.py
+    skills/shift-session/scripts/context-check.py
+    skills/shift-session/tests/test_context_check.py
 
 jobs:
   test:
@@ -40,7 +42,7 @@ jobs:
       - run: ruff check $HELPERS
       - run: ruff format --check $HELPERS
       - run: mypy --strict $HELPERS
-      - run: pytest skills/rename-session/tests skills/promptfy/tests -q
+      - run: pytest skills/rename-session/tests skills/promptfy/tests skills/shift-session/tests -q
       - name: Manifest and evals are consistent
         run: |
           python - <<'PY'

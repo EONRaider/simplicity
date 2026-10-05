@@ -59,6 +59,8 @@ Only archive after the user explicitly confirms in this step — never speculati
 
 **When `/simplicity:just-finish-it` runs this checklist**, it owns every decision that would come back to the user: wherever a step above says to ask, hand the item back to `just-finish-it` as pending instead of asking, send no messages to people, and stop after the summary without asking about archiving. `just-finish-it` continues from its own next step.
 
+**When `/simplicity:shift-session` runs this checklist**, the same holds: it owns every decision that would come back to the user. Wherever a step above says to ask, hand the item back to `shift-session` as pending instead of asking, send no messages to people beyond the tracker updates `shift-session` already made, and stop after the summary without asking about archiving. `shift-session` has already committed and pushed in its own first step, which it does on the user's say-so, and it decides about archiving from its own pending list.
+
 ## Lifecycle
 
 **Encoded-preference, timelessness 8/10, last verified against claude-opus-5-5 (2026-09).** The checklist is a fixed closing routine, and better models don't make "check the working tree before archiving" obsolete. It scores 8 rather than higher because steps 4–6 lean on the desktop app's current session-management tools. Re-verify them when those tools change.
