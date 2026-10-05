@@ -73,10 +73,8 @@ SELF_COMMANDS = frozenset({"/promptfy", "/simplicity:promptfy"})
 # transcript as typed. It asks for the rewrite; it is never the prompt to
 # rewrite. The lookarounds keep paths ("skills/promptfy/") and longer names
 # ("/promptfy-all") from matching.
-SELF_MENTION = re.compile(
-    r"(?<![\w/:.-])(?:%s)(?![\w-])"
-    % "|".join(map(re.escape, sorted(SELF_COMMANDS, key=len, reverse=True)))
-)
+_SELF_NAMES = "|".join(map(re.escape, sorted(SELF_COMMANDS, key=len, reverse=True)))
+SELF_MENTION = re.compile(rf"(?<![\w/:.-])(?:{_SELF_NAMES})(?![\w-])")
 
 Record = dict[str, typing.Any]
 
