@@ -210,8 +210,18 @@ suggests it once context use reaches a threshold.
       - the handoff had no archive line.
     - So step 1 now says a denial never ends the shift and never turns
       into a question.
-  - **Not repeated** after that last wording change: the shift and the
-    evals.
+  - **A fourth shift, in auto mode with no approval, on that wording.**
+    - The classifier again refused the commit.
+    - The shift recorded it, and the push that depended on it, as
+      pending. It then created the chip, renamed the parent, ran cleanup
+      and ended with a Still to do list, without asking anything. The
+      parent stayed open.
+  - **Caveat for runs 2 to 4.** The prompt that seeded each session's
+    file said "Don't commit it". The classifier likely refused the commit
+    in part because of that earlier instruction, so a real session may
+    not hit the refusal at all. The non-blocking behavior is verified
+    either way.
+  - **Not repeated** after the last wording change: the evals.
 
 Not run: the baseline configuration, the trigger set on Haiku and Opus,
 the hook-triggered path in the desktop app, and the automatic-start path,
