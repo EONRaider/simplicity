@@ -1159,12 +1159,22 @@ TIGHT = (r"already (?:\w+ )?(?:tight|precise|clear|specific|strong|solid|good|sh
 TIGHT_PROMPT = json.loads((REPO / "skills" / "promptfy" / "evals" / "evals.json").read_text())["evals"][2]["prompt"].partition(" ")[2]
 
 
+SKILL_LOAD = re.compile(r"```json\n(\{\"action\": \"Skill\".*?\"real_tool_call\": true[^\n]*)\n```\s*")
+
+
+def without_skill_loads(r):
+    """The response with real Skill calls removed. Loading a skill is a tool call the user never sees as output, so
+    format checks such as "no preamble" must not count it."""
+    return SKILL_LOAD.sub("", r)
+
+
 def loads_skill(name):
     """A real Skill call that loaded simplicity:<name>. A command named mid-sentence isn't expanded, so the model has
-    to load the skill itself before it can follow it."""
+    to load the skill itself before it can follow it. It reads the unstripped response."""
     def check(r, *_):
         hit = [d for d in action_blocks(r) if d["name"] == "Skill" and f"simplicity:{name}" in d["args"]]
         return bool(hit), f"loaded simplicity:{name}" if hit else f"no Skill call loaded simplicity:{name}"
+    check.reads_skill_loads = True
     return check
 
 
@@ -1242,9 +1252,12 @@ def grade_run(skill, eid, texts, run_dir):
     meta = json.loads((run_dir / "outputs" / "result.json").read_text())
     checks = CHECKS[(skill, eid)]
     assert len(checks) == len(texts), f"{skill} eval {eid}: {len(checks)} checks vs {len(texts)} expectations"
+    raw_r, r = r, without_skill_loads(r)
     results = []
     for text, fn in zip(texts, checks):
-        if skill in ("just-ask", "promptfy"):
+        if getattr(fn, "reads_skill_loads", False):
+            ok, ev = fn(raw_r)
+        elif skill in ("just-ask", "promptfy"):
             p = payloads(r) if skill == "just-ask" else pf_payloads(r)
             qs = p[0] if p and isinstance(p[0], list) else (p[0][1] if p and isinstance(p[0], tuple) else None)
             qs = norm(qs) if qs is not None else None

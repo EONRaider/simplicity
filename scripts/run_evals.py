@@ -113,7 +113,9 @@ def run_one(job):
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
            "--output-format", "stream-json", "--verbose"] + ISOLATION
     if config == "with_skill":
-        cmd += ["--plugin-dir", str(REPO)]
+        # A skill the model loads itself, rather than one the user typed, asks before it loads when it declares
+        # allowed-tools. Allowing Skill stands in for the user approving that prompt.
+        cmd += ["--plugin-dir", str(REPO), "--allowedTools", "Skill"]
     start, t0 = now(), time.time()
     with tempfile.TemporaryDirectory() as cwd:
         try:

@@ -33,6 +33,7 @@ claude --plugin-dir /path/to/simplicity
 - `cleanup`'s session steps (stopping background tasks, messaging other sessions, retitling, archiving) use the desktop app's session tools. In the CLI it skips them, says so, and ends at "ready to close".
 - `just-say-it` only compresses. If you want terser output in every session, set an output style or a CLAUDE.md instruction instead.
 - `rename-session` and `promptfy` ship Python helpers. They need Python 3, the `CLAUDE_CODE_SESSION_ID` environment variable that Claude Code sets, and a session transcript on disk. `rename-session` needs them only in the CLI, and `promptfy` only when you call it with no argument.
+- Named mid-sentence, `rename-session` and `promptfy` ask before they load, because they declare `allowed-tools` for their helper scripts, and the helper script may ask too. Typed as the command, neither asks.
 - `rename-session` renames through the desktop app's session title tool when it runs there, because the app keeps its own titles. In the CLI it writes the `custom-title` records that Claude Code keeps for its own renames. They're internal and undocumented, so a CLI update could break it, and the header of the live session may show the old title until you reopen it. Whether it updates the claude.ai web title in cloud sessions is unverified.
 
 ## Evals
@@ -50,7 +51,7 @@ Every run is isolated from the machine it runs on:
 
 - It skips user-level settings, skills and plugins (`--setting-sources project,local`).
 - It skips MCP servers and claude.ai connectors (`--strict-mcp-config`).
-- The only tool it can call is `Skill`.
+- The only tool it can call is `Skill`, and a with-skill run may load a skill without asking, as if you had approved the prompt.
 
 The `just-finish-it`, `cleanup`, `rename-session` and `promptfy` seeds end with a "Live state" snapshot that stands in for the repos and PRs. The model logs every command it would run as a JSON block, and the grader checks those blocks for order and safety. No real repository, PR or session is touched.
 
