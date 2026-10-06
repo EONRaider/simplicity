@@ -8,7 +8,7 @@
 
 ## How it was checked
 
-- [ ] `pytest skills/rename-session/tests skills/promptfy/tests skills/shift-session/tests -q` passes
+- [ ] `pytest skills/rename-session/tests skills/promptfy/tests skills/shift-session/tests skills/call-it-a-day/tests -q` passes
 - [ ] `ruff check`, `ruff format --check` and `mypy --strict` pass on the helper scripts and their tests
 - [ ] `claude plugin validate .` passes
 - [ ] Evals run for the skills this touches, with the run count and pass rates stated (or "not run")

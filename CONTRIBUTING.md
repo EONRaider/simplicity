@@ -22,7 +22,7 @@ python3 -m pip install pytest ruff mypy
 Run the checks CI runs:
 
 ```bash
-pytest skills/rename-session/tests skills/promptfy/tests skills/shift-session/tests -q
+pytest skills/rename-session/tests skills/promptfy/tests skills/shift-session/tests skills/call-it-a-day/tests -q
 ruff check skills/*/scripts skills/*/tests
 ruff format --check skills/*/scripts skills/*/tests
 mypy --strict skills/*/scripts/*.py skills/*/tests/*.py

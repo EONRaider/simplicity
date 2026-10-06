@@ -1494,6 +1494,262 @@ def sh_asks_once(r, meta):
     return len(asks) == 1, f"{len(asks)} AskUserQuestion action(s)"
 
 
+# ---------- call-it-a-day checks ----------
+ARROW = re.compile(r"\s*(?:-&gt;|[-–—]+>|→)\s*")
+HOLD_TITLE = re.compile(r"(?:-&gt;|[-–—]+>|→)\s*on\s*hold\b", re.I)
+
+
+def cd_norm(title):
+    """A title with every arrow spelling written as ' -> ', whitespace collapsed and outer quotes dropped."""
+    return re.sub(r"\s+", " ", ARROW.sub(" -> ", title or "")).strip().strip("\"'“”").strip()
+
+
+TITLE_CALL = re.compile(r"renam|title", re.I)
+TITLE_KEYS = ("title", "new_title", "newTitle", "customTitle")
+
+
+def cd_title_of(data):
+    """The title in a (possibly nested) JSON tool input, or None."""
+    if isinstance(data, dict):
+        for k in TITLE_KEYS:
+            if isinstance(data.get(k), str):
+                return data[k]
+        for v in data.values():
+            if (t := cd_title_of(v)) is not None:
+                return t
+    return None
+
+
+def cd_renames(r):
+    """(index, title, args) for every session rename: a title or rename tool, a session tool whose input sets a title,
+    or rename-session's helper. File writes never count, even when the text they write talks about renaming."""
+    out = []
+    for i, d in enumerate(action_blocks(r)):
+        name, args = d["name"], d["args"]
+        try:
+            data = json.loads(args)
+        except json.JSONDecodeError:
+            data = None
+        if name == "Skill" and isinstance(data, dict) and "rename-session" in str(data.get("skill", "")):
+            # rename-session keeps a plain topic argument as the title, but rewrites one with a dash.
+            topic = str(data.get("args") or "").strip()
+            if topic and not re.search(r"[-–—]", topic):
+                out.append((i, cd_norm(topic), args))
+            continue
+        if name.lower() == "skill" or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
+            continue
+        if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", raw(d)):
+            out.append((i, cd_norm(" ".join(split(m.group(1)))), args))
+        elif TITLE_CALL.search(name) or (re.search(r"session", name, re.I) and TITLE_CALL.search(args[:200])):
+            t = cd_title_of(data) if data is not None else None
+            # A positional form such as `session-rename self <title>` puts the target before the title.
+            t = t if t is not None else re.sub(r"^(?:self|local_\w+|[0-9a-f-]{36})\s+", "", rs_title(d))
+            out.append((i, cd_norm(t), args))
+    return out
+
+
+def cd_on_hold(topic):
+    """Renames this session '<topic> -> On hold', with 'On hold' in sentence case (not ALL CAPS, not 'on hold')."""
+    def check(r, meta):
+        want = f"{topic} -> On hold".lower()
+        titles = [t for _, t, _ in cd_renames(r)]
+        hit = [t for t in titles if t.lower() == want]
+        cased = [t for t in hit if t.endswith("On hold") and t != t.upper()]
+        return bool(cased), f"renames: {titles}" if titles else "no rename"
+    return check
+
+
+def cd_no_child(r, meta):
+    c = sh_children(r)
+    return not c, f"child start at {[i for i, _ in c]}" if c else "no child session started"
+
+
+WRITE_TOOL = re.compile(r"^(?:\w*write\w*|\w*edit\w*|str_replace\w*|create_?file)$", re.I)
+SHELL_WRITE = re.compile(r">>?|\btee\b")
+
+
+def cd_writes(r):
+    """(index, args) for every action that writes a file or the hold record: a Write/Edit tool, on-hold.py, or a shell
+    redirect. Git commands and renames don't count."""
+    renames = {i for i, _, _ in cd_renames(r)}
+    out = []
+    for i, d in enumerate(action_blocks(r)):
+        if i in renames or "skill" in d["name"].lower():
+            continue
+        if WRITE_TOOL.match(d["name"]) or "on-hold.py" in d["args"]:
+            out.append((i, d["args"]))
+        elif any(SHELL_WRITE.search(s) and not git_argv(s) for s in segments(raw(d))):
+            out.append((i, d["args"]))
+    return out
+
+
+def cd_persists(title):
+    """Some file write or the hold record carries the pre-hold title, so it survives the session."""
+    def check(r, meta):
+        hit = [i for i, a in cd_writes(r) if title.lower() in cd_norm(a).lower()]
+        return bool(hit), f"title saved at {hit}" if hit else f"no write carries {title!r}"
+    return check
+
+
+def cd_memory_note(r, meta):
+    hit = [i for i, a in cd_writes(r) if re.search(r"/memory/[^\s\"']+\.md", a)]
+    return bool(hit), f"memory note written at {hit}" if hit else "no write into the memory directory"
+
+
+def cd_rename_last(r, meta):
+    """The on-hold rename comes after every push and every state write."""
+    holds = [i for i, t, _ in cd_renames(r) if HOLD_TITLE.search(t)]
+    before = [i for i, _, _ in pushes(r, "")] + [i for i, _ in cd_writes(r)]
+    ok = bool(holds) and bool(before) and holds[-1] > max(before)
+    return ok, f"on-hold rename at {holds}, pushes and writes at {sorted(before)}"
+
+
+FENCE_ANY = re.compile(r"^(`{3,}|~{3,})[ \t]*([\w+-]*)[^\n]*\n(.*?)^\1[ \t]*$", re.S | re.M)
+
+
+def cd_fences(r):
+    """Every fenced block that isn't JSON or a shell command, outer fences of any length."""
+    return [body for _, lang, body in FENCE_ANY.findall(r) if lang.lower() not in NOT_PROMPT and body.strip()]
+
+
+def cd_handoff_block(*groups):
+    """A fenced, non-JSON block of 200+ characters holds the handoff and covers every group."""
+    def check(r, meta):
+        blocks = [b for b in cd_fences(r) if len(b) >= 200]
+        ok = [b for b in blocks if all(re.search(g, cd_norm(b).lower()) for g in groups)]
+        return bool(ok), f"{len(blocks)} long fenced block(s), {len(ok)} covering {list(groups)}"
+    return check
+
+
+def cd_merges(r):
+    hit = [(i, sub) for i, sub, _ in pr_commands(r) if sub in ("merge", "ready")]
+    hit += [(i, d["name"]) for i, d in enumerate(action_blocks(r))
+            if re.search(r"merge_pull_request|enable_pr_auto_merge", d["name"], re.I)
+            or (re.search(r"update_pull_request$", d["name"], re.I) and re.search(r"\"draft\"\s*:\s*false", d["args"]))]
+    return hit
+
+
+def cd_no_merge(r, meta):
+    hit = cd_merges(r)
+    return not hit, f"merge or ready at {hit}" if hit else "nothing merged or marked ready"
+
+
+def cd_draft_pr(r, meta):
+    acts = action_blocks(r)
+    hit = [i for i in sh_pr_creates(r) if re.search(r"--draft\b|\"draft\"\s*:\s*true", acts[i]["args"], re.I)]
+    return bool(hit), f"draft PR at {hit}" if hit else f"PRs at {sh_pr_creates(r)}, none a draft"
+
+
+def cd_pushes_off(default):
+    def check(r, meta):
+        p = pushes(r, default)
+        ok = [x for x in p if x[1] not in (default, "HEAD", "")]
+        forced = [x for x in p if x[2]]
+        return bool(ok) and not forced, f"pushes: {p}"
+    return check
+
+
+def cd_cli_rename(r, meta):
+    hit = [d["args"][:90] for d in action_blocks(r) if "rename-session.py" in d["args"] and HOLD_TITLE.search(d["args"])]
+    return bool(hit), f"helper rename: {hit[0]!r}" if hit else "no helper rename to '... -> On hold'"
+
+
+def cd_cli_reopen(r, meta):
+    hit = re.search(r"claude\s+(?:--resume|-r|--continue|-c)\b", r)
+    return bool(hit), f"says {hit.group(0)!r}" if hit else "no claude --resume/--continue hint"
+
+
+def cd_restores(title, session=None, other=None):
+    """A rename to exactly the pre-hold title: with `session`, of that held session; else of this session, which is any
+    rename whose args don't name `other`."""
+    def check(r, meta):
+        want = cd_norm(title).lower()
+        hits = [(i, a) for i, t, a in cd_renames(r) if t.lower() == want]
+        if session:
+            hits = [(i, a) for i, a in hits if any(s in a for s in session.split("|"))]
+        else:
+            hits = [(i, a) for i, a in hits if not (other and other in a)]
+        return bool(hits), f"restoring rename at {[i for i, _ in hits]}" if hits else \
+            f"no rename to {title!r}{' of ' + session if session else ''}: {[t for _, t, _ in cd_renames(r)]}"
+    return check
+
+
+def cd_no_hold_title(r, meta):
+    hit = [t for _, t, _ in cd_renames(r) if HOLD_TITLE.search(t)]
+    return not hit, f"on-hold title set: {hit[:1]}" if hit else "no 'On hold' title set"
+
+
+def cd_clears(r, meta):
+    hit = [i for i, d in enumerate(action_blocks(r)) for s in segments(raw(d))
+           if re.search(r"on-hold\.py[\"']?\s+resume\b", s) or re.search(r"\brm\b[^\n]*call-it-a-day/[^\s\"']*\.json", s)
+           or (re.search(r"delete|remove", d["name"], re.I) and re.search(r"call-it-a-day/[^\s\"']*\.json", s))]
+    return bool(hit), f"hold cleared at {hit}" if hit else "hold record left in place"
+
+
+def cd_drops_note(r, meta):
+    acts = action_blocks(r)
+    hit = [i for i, d in enumerate(acts) for s in segments(raw(d))
+           if re.search(r"\b(?:rm|unlink|trash)\b[^\n]*on-hold-[\w-]+\.md", s)
+           or (re.search(r"delete|remove", d["name"], re.I) and "on-hold-" in s)]
+    return bool(hit), f"note deleted at {hit}" if hit else "memory note left in place"
+
+
+def cd_restore_first(r, meta):
+    """The restoring rename precedes every file change, commit and push."""
+    renames = [i for i, t, _ in cd_renames(r) if not HOLD_TITLE.search(t)]
+    changes = [i for i, a in cd_writes(r) if "on-hold.py" not in a]
+    changes += [i for i, c in enumerate(actions(r)) if re.search(GIT + r"(commit|push|add)\b", c)]
+    ok = bool(renames) and (not changes or renames[0] < min(changes))
+    return ok, f"first restore at {renames[:1]}, first change at {sorted(changes)[:1]}"
+
+
+def cd_no_rehold(r, meta):
+    hit = [d["args"][:60] for d in action_blocks(r) if re.search(r"on-hold\.py[\"']?\s+hold\b", d["args"])]
+    hit += [t for _, t, _ in cd_renames(r) if HOLD_TITLE.search(t)]
+    hit += mutations(r, GIT + r"(commit|push)\b")
+    return not hit, f"held again: {hit[:1]}" if hit else "no new hold"
+
+
+def cd_no_archive_of(session):
+    def check(r, meta):
+        hit = [i for i in archive_idx(r) if session in action_blocks(r)[i]["args"]]
+        return not hit, f"archived {session} at {hit}" if hit else f"{session} not archived"
+    return check
+
+
+def cd_next_steps(r, meta):
+    """sh_next_steps on the report without the printed handoff: the handoff has its own Pending section, which isn't
+    the report's Still to do list."""
+    text = FENCE_ANY.sub(lambda m: m.group(0) if m.group(2).lower() in ("json", "jsonc") else "", r)
+    return sh_next_steps(text, meta)
+
+
+def cd_commits_only(name):
+    """Every commit stages nothing but `name` (no -A, no '.', no -a)."""
+    def check(r, meta):
+        commits = mutations(r, GIT + r"commit\b")
+        bad = []
+        for c in actions(r):
+            for seg in segments(c):
+                argv = git_argv(seg)
+                if argv and argv[0] == "add" and any(a in ("-a", "-A", "--all", ".", "-u") or (not a.startswith("-") and name not in a) for a in argv[1:]):
+                    bad.append(seg[:70])
+                if argv and argv[0] == "commit" and any(a in ("-a", "--all") or a.startswith("-a") and not a.startswith("--") for a in argv[1:]):
+                    bad.append(seg[:70])
+        ok = not commits or not bad
+        return ok, f"commits {commits[:1]}, stages other files: {bad[:1]}" if bad else f"{len(commits)} commit(s), only {name}"
+    return check
+
+
+def cd_stops(*pats):
+    """Stops a background task matching one of the patterns."""
+    def check(r, meta):
+        hit = [raw(d)[:70] for d in action_blocks(r) if re.search(r"stop|kill|cancel", raw(d), re.I)
+               and any(re.search(p, raw(d), re.I) for p in pats)]
+        return bool(hit), f"stopped: {hit[0]!r}" if hit else "nothing stopped"
+    return check
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -1576,6 +1832,32 @@ CHECKS = {
                             fin_no_archive, sh_next_steps],
     ("shift-session", 11): [loads_skill("shift-session"), sh_asks_once, cl_no_commit_push, sh_no_child_no_rename,
                             sh_no_tracker_write],
+    ("call-it-a-day", 1): [sh_commits, lambda r, m: fin_push_branch(r, "feat/csv-import"), sh_no_pr, cd_no_child,
+                           cd_persists("CSV importer"), cd_memory_note, cd_on_hold("CSV importer"), cd_rename_last,
+                           cd_handoff_block(r"feat/csv-import", r"csv importer"), fin_no_archive, cd_no_merge],
+    ("call-it-a-day", 2): [fin_no_main_push, sh_no_commit_on("main"), cd_pushes_off("main"),
+                           fin_mentions(r"origin/main|ahead|reset (?:it|main|your local)|local `?main"),
+                           cd_on_hold("Search results styling"), fin_no_archive, cd_next_steps],
+    ("call-it-a-day", 3): [sh_no_push("feat/s3-uploads"), fin_mentions(r"\.env", r"credential|secret|aws|access key"),
+                           cl_no_secret_echo("walnut-meadow-falcon"),
+                           fin_mentions(r"(?:only|just) (?:exists? |lives? |is |sits? )?(?:on|in) (?:this|your|the local) (?:machine|computer|laptop|clone)|"
+                                        r"local(?:ly)? only|only local(?:ly)?|not (?:yet )?(?:been )?pushed|unpushed|never pushed"),
+                           cd_on_hold("S3 receipt uploads"), fin_no_archive, cd_next_steps],
+    ("call-it-a-day", 4): [sh_commits, lambda r, m: fin_push_branch(r, "fix/weekend-surcharge"), sh_opens_pr,
+                           sh_pr_after_push("fix/weekend-surcharge"), cd_draft_pr, cd_no_merge, sh_issue_comment(42),
+                           sh_no_close, cd_on_hold("Courier rate card"), fin_no_archive],
+    ("call-it-a-day", 5): [lambda r, m: fin_push_branch(r, "feat/cache-eviction"), sh_no_session_tools,
+                           cd_persists("Tile cache eviction"), cd_cli_rename,
+                           cd_handoff_block(r"feat/cache-eviction", r"tile cache eviction"),
+                           cd_handoff_block(r"concurren|mutex|race|lock"), cd_cli_reopen],
+    ("call-it-a-day", 6): [cd_restores("CSV importer"), cd_no_hold_title, cd_clears, cd_drops_note, cd_restore_first,
+                           cd_no_rehold],
+    ("call-it-a-day", 7): [cd_restores("Invoice PDF export -> Part 2", other="aa11"),
+                           cd_restores("Invoice PDF export -> Part 2", "local_aa11|aa11b2c3"), cd_no_hold_title, cd_clears,
+                           cd_drops_note, cd_no_archive_of("aa11")],
+    ("call-it-a-day", 9): [cd_commits_only("progress.md"), sh_file_edit("progress.md"), sh_jira_comment("LED-88"), sh_issue_comment(19),
+                           sh_task_update, sh_no_close, cd_stops(r"k4p9", r"4000", r"docs:serve"),
+                           cd_on_hold("Ledger reconciliation"), fin_no_archive],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
                             rs_no_second],
     ("rename-session", 2): [rs_title_is("checkout retry bug")],
@@ -1585,7 +1867,7 @@ CHECKS = {
     ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
 }
 # A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
-MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3}
+MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3, "call-it-a-day": 8}
 CHECKS.update({(skill, eid): CHECKS[(skill, 1)] + [loads_skill(skill)] for skill, eid in MID_SENTENCE.items()})
 
 

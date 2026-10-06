@@ -5,6 +5,196 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.10.0] - 2026-10-06
+
+A new command, `/simplicity:call-it-a-day`, puts a session on hold at the
+end of the day so the same work can be picked up later with nothing lost.
+
+### Added
+
+- **`/simplicity:call-it-a-day [--pr]`.** One hold runs eight steps:
+  0. **Reads `shift-session`'s SKILL.md** from the plugin and reuses its
+     rules instead of copying them. It stops in plan mode, and in a
+     session already handed off.
+  1. **Commits and pushes.** It follows `shift-session`'s step 1, with
+     these changes:
+     - uncommitted work becomes a `WIP:` commit, however unfinished;
+     - work found on the default branch moves to `hold/<topic>`, and the
+       default branch is never reset or pushed;
+     - with `--pr` it opens the PR as a draft, never marks it ready and
+       never merges it.
+     The shared rules still hold: no force-push, no staged secret, and
+     any branch whose diff or `git log -p` holds a secret stays held back.
+  2. **Updates the trackers that exist**, per `shift-session`'s step 2.
+     Each update says the work is on hold, not finished. Unfinished tasks
+     stay open.
+  3. **Records the pre-hold title and writes the handoff**, with
+     `shift-session`'s Goal / Done / Pending / Repository state / Next
+     step / Context sections. The handoff opens with the resume steps,
+     which name the exact title to restore.
+  4. **Saves the state where a lost session can't take it:**
+     - a note in the project's memory directory, `on-hold-<topic>.md`,
+       with a line in the memory index;
+     - a hold record under `~/.claude/simplicity/call-it-a-day/`.
+  5. **Stops what the session started**, using `cleanup`'s step 2 rules.
+     It doesn't run `cleanup` itself, since that offers to archive.
+  6. **Renames the session "<topic> -> On hold"**, last. It never
+     archives the session and never starts another one.
+  7. **Reports and prints the handoff prompt** in a fenced code block.
+     Pending items are listed under "Still to do", each with a **Next:**
+     step.
+- **Resume, with no resume command.** In the same session, a new
+  `UserPromptSubmit` hook (`skills/call-it-a-day/scripts/on-hold.py`)
+  finds the hold record and asks Claude to restore the title, clear the
+  hold and delete the note. A message that only says "thanks" or "good
+  night" leaves the hold in place. Where the hook can't run, the hold
+  report in the transcript does the same job. In a new session, the
+  pasted handoff (or the memory note) carries the same steps, including
+  giving the held session its title back. Neither session is archived.
+- **`on-hold.py`.** It is standard library only. Its subcommands are
+  `hold`, `show`, `resume` and `title` (the CLI title, from the
+  transcript's `custom-title` records). With no subcommand it runs as the
+  hook. Every hook path exits 0.
+- **Tests and evals:**
+  - 60 unit tests for the helper, run against a throwaway home directory.
+  - 9 seeded evals. They cover a dirty tree, work on the default branch,
+    a secret in the branch history, `--pr`, the CLI with no session tools,
+    a resume in the same session, a resume in a new session from the
+    handoff, the command named mid-sentence, and a project with several
+    trackers.
+  - A 10-query trigger set.
+
+### Changed
+
+- **`plugin.json`** lists the skill, describes it and gains two keywords.
+  It also adds the second `UserPromptSubmit` hook. `shift-session` and its
+  `context-check.py` hook are unchanged.
+- **`run_evals.py`** gives `call-it-a-day`'s runs the read-only `Read`
+  tool, which they need for `shift-session`'s SKILL.md.
+- **CI, `CONTRIBUTING.md` and the PR template** run the new tests, and CI
+  lints the helper.
+
+### Evidence
+
+- **Unit tests and linters:** pytest (162 tests across the four helpers),
+  ruff, `mypy --strict`, `claude plugin validate .`, and CI's
+  manifest/evals check, all run locally.
+- **Evals** (`python3 scripts/run_evals.py --skills call-it-a-day`), one
+  run per cell, Claude Code 2.1.291:
+  - **Round 1:** 54 runs, both configurations on Haiku, Sonnet and Opus,
+    on the first draft.
+  - **Round 2:** 27 runs with the skill, on the fixed wording, plus eval
+    7's 3 baseline runs, since its prompt changed.
+
+  | Model | Round 2, with skill | Round 1, with skill | Round 1, without skill |
+  |---|---|---|---|
+  | claude-haiku-4-5 | 68/75 | 63/75 | 37/75 |
+  | claude-sonnet-5-5 | 75/75 | 74/75 | 37/75 |
+  | claude-opus-5-5 | 75/75 | 71/75 | 47/75 |
+
+  - **What round 1 found in the skill:**
+    - **No exact title in step 2.** The handoff's step 2 said "give that
+      one its title back" without naming the title. Every model restored
+      the held session to "Invoice PDF export", the topic, instead of
+      "Invoice PDF export -> Part 2". Both steps now name the exact title.
+    - **Default branch reset.** Haiku reset and pushed `main` right after
+      moving the work off it. Step 1 now says the reset is the user's,
+      after the branch merges.
+    - **Wrong rename route.** Haiku used `/simplicity:rename-session`,
+      whose rules rewrite a title with a dash. The handoff, the hook's
+      note and the resume section now rule it out.
+  - **Grader fixes from round 1,** all regraded on both rounds:
+    - The pending-list check now ignores the printed handoff's own
+      Pending section.
+    - Eval 9 allows committing the progress-log entry CLAUDE.md asks for.
+    - Renames are read from nested tool inputs, from a `rename-session`
+      Skill call with a plain title, and from a helper path in the
+      action's name.
+    - A file write that mentions renaming no longer counts as a rename.
+  - **Round 2's remaining misses, all Haiku:**
+    - It repeated the fake `.env` secret value in its report (eval 3).
+      The skill forbids this; `shift-session`'s Haiku runs did the same in
+      v0.9.0. It never pushed the branch.
+    - It wrote the handoff to `/tmp` instead of the memory directory
+      (evals 1 and 8).
+    - It left the local `main` commit off the pending list and had no
+      Still to do list (eval 2).
+    - It didn't say how to reopen the session in the CLI (eval 5).
+    - It didn't update the task list (eval 9).
+  - **Round 1, Opus eval 7:** Opus described the resume steps but logged
+    none of them as actions. It treated a failed real `Read` as the end of
+    the work. It passed on round 2.
+  - **The baseline** without the plugin scores well on eval 7 (6/6 on
+    round 2 for every model), because the pasted handoff is meant to work
+    without the skill.
+
+- **Trigger set,** with SkillArtisan's description optimizer, measuring
+  only (3 runs per query, `sonnet`): 8/10.
+  - The bare `/simplicity:call-it-a-day` missed 0/3, for the reason v0.9.0
+    recorded: the optimizer installs the skill on its own, so Claude Code
+    rejects the command as unknown before the model sees it.
+  - The three paraphrases held at 0/3: "let's call it a day", "put this
+    session on hold until tomorrow" and "I'm done for today, save
+    everything". The first passes partly by construction, since the
+    description names it as not a request; the other two held without
+    help.
+  - **A false trigger:** "add a call_it_a_day flag to the scheduler
+    config" loaded the skill 2/3. It's an identifier in a coding request,
+    not a paraphrase. The description wasn't tuned to the test set.
+- **Desktop app 2.19675.1 (Claude Code 2.1.284), Opus 5.5, 2026-10-06:
+  live tests in a throwaway repo** whose `origin` was a local bare repo.
+  The plugin was loaded from a local marketplace through that repo's
+  project settings, and a second `UserPromptSubmit` hook logged each
+  prompt's hook `session_id` next to `$CLAUDE_CODE_SESSION_ID`.
+  - **A hold** (`/simplicity:call-it-a-day`, an untracked file on
+    `feature/release-notes`):
+    - it read `shift-session/SKILL.md` on the first try, since
+      `${CLAUDE_SKILL_DIR}` was already expanded in the loaded skill;
+    - it made a `WIP:` commit, scanned `git log -p` for secrets and
+      pushed with a plain `git push -u`, with no PR;
+    - it wrote `on-hold-release-notes-draft.md` to the memory directory,
+      and created `MEMORY.md` with its line;
+    - the hold record held the pre-hold title "Release notes draft";
+    - `get_session` returned "Release notes draft -&gt; On hold";
+    - the session stayed open, and the handoff was printed in a fenced
+      code block.
+  - **The hook's session id** matched `$CLAUDE_CODE_SESSION_ID` on all 7
+    logged prompts across both sessions, so the record's key is the hook's.
+  - **The app id is a third id.** The app calls the same session
+    `local_19b53fc0-…`, which is neither of those, and the title tool
+    takes only that one. The skill said only "this session's id", which
+    read literally is the CLI id. Opus put the app id in the handoff on
+    its own initiative. **Fix:** step 3 now keeps `get_session`'s
+    `sessionId`, and the handoff names it as the desktop app id, for the
+    title tool in resume step 2.
+  - **"thanks, good night":** the hook's note reached the context. The
+    model answered that the session was still on hold. Nothing was
+    renamed, and the record and note stayed.
+  - **A resume in the same session:** a work request. Before any work it
+    renamed the session "Release notes draft", ran `on-hold.py resume`
+    and deleted the note and the index it had created, then made the
+    edit. It committed nothing.
+  - **A resume in a new session**, from a second hold's pasted handoff:
+    the new session took "Release notes draft", renamed the held session
+    back by its app id, and removed the record and the note. Neither
+    session was archived. It skipped the handoff's `git fetch` and
+    checkout, since the tree was already on the branch and it read no
+    code.
+  - **Work on `main`, named mid-sentence** ("ok that's enough for today,
+    can you run /simplicity:call-it-a-day?"): the model loaded the skill
+    itself with the Skill tool. The work moved to
+    `hold/release-notes-draft` and was pushed; `main` was never committed to or pushed.
+    Whether the app asked before loading wasn't observed.
+- **Evals rerun after the fix** (`--evals 1 7`, with skill, one run per
+  cell): 51/51. Haiku 11/11 and 6/6, Sonnet 11/11 and 6/6, Opus 11/11 and
+  6/6. Every eval-1 handoff now names the seed's app id. Haiku's round-2
+  miss on eval 1, the handoff written to `/tmp`, didn't recur.
+
+Not run: more than one run per cell; the trigger set on Haiku and Opus;
+the live auto-permission-mode test, since `shift-session`'s step 1 that
+this skill follows was verified live in v0.9.0; and any live test in the
+CLI. The permission prompt before a mid-sentence load wasn't observed.
+
 ## [v0.9.0] - 2026-10-06
 
 A new command, `/simplicity:shift-session`, hands a session's work to a
@@ -1051,7 +1241,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.10.0...HEAD
+[v0.10.0]: https://github.com/EONRaider/simplicity/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/EONRaider/simplicity/compare/v0.8.1...v0.9.0
 [v0.8.1]: https://github.com/EONRaider/simplicity/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://github.com/EONRaider/simplicity/compare/v0.7.2...v0.8.0

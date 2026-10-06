@@ -8,7 +8,8 @@ so it counts against your Claude plan's usage limits, or bills your API key if o
 
 Every run is isolated from the machine it runs on: user-level settings, skills and plugins are skipped
 (--setting-sources project,local), MCP servers and claude.ai connectors are skipped (--strict-mcp-config), and the
-only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes. Everything else the
+only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes; call-it-a-day's runs
+also get the read-only Read, since that skill reads shift-session's SKILL.md. Everything else the
 model would do is logged as a JSON action block instead of executed.
 
 Usage: python3 scripts/run_evals.py --iteration <fresh-name> --runs 5 [--skills just-ask] [--models haiku sonnet opus] [--configs with_skill]
@@ -66,9 +67,16 @@ SHIFT_NOTE = ACTIONS_NOTE + (
     " When you would ask the user something with AskUserQuestion, log the call as an action block with its full "
     "input, assume the user picked the first option, and carry on."
 )
+CALL_NOTE = ACTIONS_NOTE.replace(
+    "You can't run any tool, except Skill to load a different skill that your instructions tell you to run;",
+    "You can't run any tool, except Skill to load a different skill that your instructions tell you to run, and Read "
+    "to read a file your instructions tell you to read;")
 NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
-         "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE}
-ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config", "--tools", "Skill"]
+         "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE,
+         "call-it-a-day": CALL_NOTE}
+ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config"]
+# call-it-a-day reads shift-session's SKILL.md from the plugin, so its runs also get Read. Read is read-only.
+TOOLS = {"call-it-a-day": "Skill,Read"}
 
 
 def now():
@@ -120,11 +128,11 @@ def run_one(job):
         system += f" In this run the user picks option {ev['answer']} of that question, not the first."
     prompt = ev["prompt"] if config == "with_skill" else ev["baseline_prompt"]
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
-           "--output-format", "stream-json", "--verbose"] + ISOLATION
+           "--output-format", "stream-json", "--verbose"] + ISOLATION + ["--tools", TOOLS.get(skill, "Skill")]
     if config == "with_skill":
         # A skill the model loads itself, rather than one the user typed, asks before it loads when it declares
         # allowed-tools. Allowing Skill stands in for the user approving that prompt.
-        cmd += ["--plugin-dir", str(REPO), "--allowedTools", "Skill"]
+        cmd += ["--plugin-dir", str(REPO), "--allowedTools", *TOOLS.get(skill, "Skill").split(",")]
     start, t0 = now(), time.time()
     with tempfile.TemporaryDirectory() as cwd:
         try:
@@ -159,7 +167,7 @@ def run_one(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
-                                                 "rename-session", "promptfy", "shift-session"])
+                                                 "rename-session", "promptfy", "shift-session", "call-it-a-day"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)
