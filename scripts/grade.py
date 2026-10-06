@@ -1504,9 +1504,40 @@ def cd_norm(title):
     return re.sub(r"\s+", " ", ARROW.sub(" -> ", title or "")).strip().strip("\"'“”").strip()
 
 
+TITLE_CALL = re.compile(r"renam|title", re.I)
+TITLE_KEYS = ("title", "new_title", "newTitle", "customTitle")
+
+
+def cd_title_of(data):
+    """The title in a (possibly nested) JSON tool input, or None."""
+    if isinstance(data, dict):
+        for k in TITLE_KEYS:
+            if isinstance(data.get(k), str):
+                return data[k]
+        for v in data.values():
+            if (t := cd_title_of(v)) is not None:
+                return t
+    return None
+
+
 def cd_renames(r):
-    """(index, title, args) for every rename the run made. A child start isn't a rename here: this skill starts none."""
-    return [(i, cd_norm(rs_title(d)), d["args"]) for i, d in enumerate(action_blocks(r)) if d in rs_renames(r)]
+    """(index, title, args) for every session rename: a title or rename tool, a session tool whose input sets a title,
+    or rename-session's helper. File writes never count, even when the text they write talks about renaming."""
+    out = []
+    for i, d in enumerate(action_blocks(r)):
+        name, args = d["name"], d["args"]
+        if "skill" in name.lower() or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
+            continue
+        try:
+            data = json.loads(args)
+        except json.JSONDecodeError:
+            data = None
+        if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", args):
+            out.append((i, cd_norm(" ".join(split(m.group(1)))), args))
+        elif TITLE_CALL.search(name) or (re.search(r"session", name, re.I) and TITLE_CALL.search(args[:200])):
+            t = cd_title_of(data) if data is not None else None
+            out.append((i, cd_norm(t if t is not None else rs_title(d)), args))
+    return out
 
 
 def cd_on_hold(topic):
@@ -1525,7 +1556,7 @@ def cd_no_child(r, meta):
     return not c, f"child start at {[i for i, _ in c]}" if c else "no child session started"
 
 
-WRITE_TOOL = re.compile(r"^(?:write|edit|multiedit|str_replace\w*|create\w*|notebookedit)$", re.I)
+WRITE_TOOL = re.compile(r"^(?:\w*write\w*|\w*edit\w*|str_replace\w*|create_?file)$", re.I)
 SHELL_WRITE = re.compile(r">>?|\btee\b")
 
 
