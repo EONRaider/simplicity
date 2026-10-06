@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [Unreleased]
+## [v0.10.0] - 2026-10-06
 
 A new command, `/simplicity:call-it-a-day`, puts a session on hold at the
 end of the day so the same work can be picked up later with nothing lost.
@@ -1241,7 +1241,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.10.0...HEAD
+[v0.10.0]: https://github.com/EONRaider/simplicity/compare/v0.9.0...v0.10.0
 [v0.9.0]: https://github.com/EONRaider/simplicity/compare/v0.8.1...v0.9.0
 [v0.8.1]: https://github.com/EONRaider/simplicity/compare/v0.8.0...v0.8.1
 [v0.8.0]: https://github.com/EONRaider/simplicity/compare/v0.7.2...v0.8.0
