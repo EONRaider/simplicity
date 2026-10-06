@@ -1536,13 +1536,15 @@ def cd_renames(r):
             if topic and not re.search(r"[-–—]", topic):
                 out.append((i, cd_norm(topic), args))
             continue
-        if "skill" in name.lower() or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
+        if name.lower() == "skill" or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
             continue
-        if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", args):
+        if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", raw(d)):
             out.append((i, cd_norm(" ".join(split(m.group(1)))), args))
         elif TITLE_CALL.search(name) or (re.search(r"session", name, re.I) and TITLE_CALL.search(args[:200])):
             t = cd_title_of(data) if data is not None else None
-            out.append((i, cd_norm(t if t is not None else rs_title(d)), args))
+            # A positional form such as `session-rename self <title>` puts the target before the title.
+            t = t if t is not None else re.sub(r"^(?:self|local_\w+|[0-9a-f-]{36})\s+", "", rs_title(d))
+            out.append((i, cd_norm(t), args))
     return out
 
 
@@ -1664,7 +1666,7 @@ def cd_restores(title, session=None, other=None):
         want = cd_norm(title).lower()
         hits = [(i, a) for i, t, a in cd_renames(r) if t.lower() == want]
         if session:
-            hits = [(i, a) for i, a in hits if session in a]
+            hits = [(i, a) for i, a in hits if any(s in a for s in session.split("|"))]
         else:
             hits = [(i, a) for i, a in hits if not (other and other in a)]
         return bool(hits), f"restoring rename at {[i for i, _ in hits]}" if hits else \
@@ -1851,7 +1853,7 @@ CHECKS = {
     ("call-it-a-day", 6): [cd_restores("CSV importer"), cd_no_hold_title, cd_clears, cd_drops_note, cd_restore_first,
                            cd_no_rehold],
     ("call-it-a-day", 7): [cd_restores("Invoice PDF export -> Part 2", other="aa11"),
-                           cd_restores("Invoice PDF export -> Part 2", "local_aa11"), cd_no_hold_title, cd_clears,
+                           cd_restores("Invoice PDF export -> Part 2", "local_aa11|aa11b2c3"), cd_no_hold_title, cd_clears,
                            cd_drops_note, cd_no_archive_of("aa11")],
     ("call-it-a-day", 9): [cd_commits_only("progress.md"), sh_file_edit("progress.md"), sh_jira_comment("LED-88"), sh_issue_comment(19),
                            sh_task_update, sh_no_close, cd_stops(r"k4p9", r"4000", r"docs:serve"),
