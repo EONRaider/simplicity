@@ -141,7 +141,7 @@ end of the day so the same work can be picked up later with nothing lost.
   - **A false trigger:** "add a call_it_a_day flag to the scheduler
     config" loaded the skill 2/3. It's an identifier in a coding request,
     not a paraphrase. The description wasn't tuned to the test set.
-- **Desktop app, Claude Code 2.1.284 (bundled), Opus 5.5, 2026-10-06:
+- **Desktop app 2.19675.1 (Claude Code 2.1.284), Opus 5.5, 2026-10-06:
   live tests in a throwaway repo** whose `origin` was a local bare repo.
   The plugin was loaded from a local marketplace through that repo's
   project settings, and a second `UserPromptSubmit` hook logged each
@@ -158,8 +158,8 @@ end of the day so the same work can be picked up later with nothing lost.
     - `get_session` returned "Release notes draft -&gt; On hold";
     - the session stayed open, and the handoff was printed in a fenced
       code block.
-  - **The hook's session id** matched `$CLAUDE_CODE_SESSION_ID` on every
-    prompt in both sessions, so the record's key is the hook's.
+  - **The hook's session id** matched `$CLAUDE_CODE_SESSION_ID` on all 7
+    logged prompts across both sessions, so the record's key is the hook's.
   - **The app id is a third id.** The app calls the same session
     `local_19b53fc0-…`, which is neither of those, and the title tool
     takes only that one. The skill said only "this session's id", which
