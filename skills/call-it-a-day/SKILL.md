@@ -67,7 +67,7 @@ A tracker update that fails goes on the pending list and doesn't stop the hold.
 
 ## 3. Titles and the handoff prompt
 
-**Read this session's title.** In the desktop app use `get_session` with `"self"`. In the CLI run `python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" title`, which prints the title or fails when the session has none. Read `-&gt;` and `→` as `->`, as shift-session's step 3 says, and always write a plain `->`.
+**Read this session's title.** In the desktop app use `get_session` with `"self"`, and keep its `sessionId` too: that's the **app id** (`local_…`) the title tool takes, and it isn't `$CLAUDE_CODE_SESSION_ID`, the id that keys the hold record. In the CLI run `python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" title`, which prints the title or fails when the session has none. Read `-&gt;` and `→` as `->`, as shift-session's step 3 says, and always write a plain `->`.
 
 - **Pre-hold title.** The title as read. If it already ends in "-> On hold", take the pre-hold title from `python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" show` instead, or, when that has no record, the title without the suffix.
 - **Topic.** The pre-hold title without a trailing "-> Part N". When there's no title, or only a generic one such as "New session", name the topic the way `/simplicity:rename-session` does (2 to 5 words, sentence case, what the work is really about), and use it as the pre-hold title too.
@@ -77,13 +77,13 @@ A tracker update that fails goes on the pending list and doesn't stop the hold.
 
 - **It opens with the resume steps**, addressed to whichever session picks the work up:
 
-  > This resumes work put on hold on <date> in session `<this session's id>`, titled "<topic> -> On hold". Before anything else:
+  > This resumes work put on hold on <date> in session `<this session's id>` (desktop app id `<its app id>`), titled "<topic> -> On hold". Before anything else:
   > 1. Rename this session "<pre-hold title>", exactly: the session title tool with `"self"` in the desktop app; in the CLI, `python3 "<absolute path of rename-session's rename-session.py>" "<pre-hold title>"`. Don't use `/simplicity:rename-session`, which rewrites a title to its own rules.
-  > 2. If this session isn't `<this session's id>`, rename that one "<pre-hold title>" too, the same exact title: the session title tool with its id in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=<this session's id>` in front. Leave it open: archiving it is the user's call.
+  > 2. If this session isn't `<this session's id>`, rename that one "<pre-hold title>" too, the same exact title: the session title tool with `<its app id>` in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=<this session's id>` in front. Leave it open: archiving it is the user's call.
   > 3. Clear the hold: `rm -f ~/.claude/simplicity/call-it-a-day/<this session's id>.json`, and delete the memory note `<its path>` and its line in the memory index.
   > 4. Run `git fetch origin` and check out `<branch>` before you read any code: this may be another machine or a fresh worktree.
 
-  Write the real pre-hold title into items 1 and 2 every time, never a placeholder or "its title": the session that reads this can't look it up. Leave out item 3's memory note when step 4 couldn't write one.
+  Here "this session's id" is always `$CLAUDE_CODE_SESSION_ID`, and the app id is the `sessionId` from `get_session`; in the CLI there's no app id, so leave out the parenthesis and the title-tool route. Write the real pre-hold title into items 1 and 2 every time, never a placeholder or "its title": the session that reads this can't look it up. Leave out item 3's memory note when step 4 couldn't write one.
 - **No archive line** and no "Part N": nothing starts a child.
 - **Pending** includes every item on the pending list with its next step, and, for anything that couldn't be pushed, says plainly that it exists only on this machine.
 
@@ -143,4 +143,4 @@ On resume, before anything else: rename the session to its exact pre-hold title,
 
 ## Lifecycle
 
-**Encoded-preference, timelessness 6/10, last verified against claude-opus-5-5 and Claude Code 2.1.291 (2026-10), with seeded evals only.** The order of a hold and its safety rules (a WIP commit instead of lost work, never push to the default branch, never force-push, hold back secrets, never merge, never archive) are fixed preferences, and the shared ones live in shift-session. It scores 6 because it leans on the host's session title tools, on Claude Code's internal `custom-title` transcript records in the CLI, on the session's memory directory, and on the `UserPromptSubmit` hook input carrying `session_id` and `prompt`. Re-check step 3, step 6 and the resume hook whenever those change, and re-check step 0's pointers whenever shift-session's steps are renumbered.
+**Encoded-preference, timelessness 6/10, last verified against claude-opus-5-5 and Claude Code 2.1.291 (2026-10) with seeded evals, and live in the desktop app on Claude Code 2.1.284.** The order of a hold and its safety rules (a WIP commit instead of lost work, never push to the default branch, never force-push, hold back secrets, never merge, never archive) are fixed preferences, and the shared ones live in shift-session. It scores 6 because it leans on the host's session title tools, on Claude Code's internal `custom-title` transcript records in the CLI, on the session's memory directory, and on the `UserPromptSubmit` hook input carrying `session_id` and `prompt`. Re-check step 3, step 6 and the resume hook whenever those change, and re-check step 0's pointers whenever shift-session's steps are renumbered.

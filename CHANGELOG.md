@@ -128,11 +128,72 @@ end of the day so the same work can be picked up later with nothing lost.
     round 2 for every model), because the pasted handoff is meant to work
     without the skill.
 
-Not run: the trigger set (SkillArtisan's description optimizer isn't
-available in the environment that built this), more than one run per
-cell, and any live test in the desktop app or the CLI. The hook, the
-title tools and the memory directory have only been exercised through
-the seeded evals and the unit tests.
+- **Trigger set,** with SkillArtisan's description optimizer, measuring
+  only (3 runs per query, `sonnet`): 8/10.
+  - The bare `/simplicity:call-it-a-day` missed 0/3, for the reason v0.9.0
+    recorded: the optimizer installs the skill on its own, so Claude Code
+    rejects the command as unknown before the model sees it.
+  - The three paraphrases held at 0/3: "let's call it a day", "put this
+    session on hold until tomorrow" and "I'm done for today, save
+    everything". The first passes partly by construction, since the
+    description names it as not a request; the other two held without
+    help.
+  - **A false trigger:** "add a call_it_a_day flag to the scheduler
+    config" loaded the skill 2/3. It's an identifier in a coding request,
+    not a paraphrase. The description wasn't tuned to the test set.
+- **Desktop app, Claude Code 2.1.284 (bundled), Opus 5.5, 2026-10-06:
+  live tests in a throwaway repo** whose `origin` was a local bare repo.
+  The plugin was loaded from a local marketplace through that repo's
+  project settings, and a second `UserPromptSubmit` hook logged each
+  prompt's hook `session_id` next to `$CLAUDE_CODE_SESSION_ID`.
+  - **A hold** (`/simplicity:call-it-a-day`, an untracked file on
+    `feature/release-notes`):
+    - it read `shift-session/SKILL.md` on the first try, since
+      `${CLAUDE_SKILL_DIR}` was already expanded in the loaded skill;
+    - it made a `WIP:` commit, scanned `git log -p` for secrets and
+      pushed with a plain `git push -u`, with no PR;
+    - it wrote `on-hold-release-notes-draft.md` to the memory directory,
+      and created `MEMORY.md` with its line;
+    - the hold record held the pre-hold title "Release notes draft";
+    - `get_session` returned "Release notes draft -&gt; On hold";
+    - the session stayed open, and the handoff was printed in a fenced
+      code block.
+  - **The hook's session id** matched `$CLAUDE_CODE_SESSION_ID` on every
+    prompt in both sessions, so the record's key is the hook's.
+  - **The app id is a third id.** The app calls the same session
+    `local_19b53fc0-…`, which is neither of those, and the title tool
+    takes only that one. The skill said only "this session's id", which
+    read literally is the CLI id. Opus put the app id in the handoff on
+    its own initiative. **Fix:** step 3 now keeps `get_session`'s
+    `sessionId`, and the handoff names it as the desktop app id, for the
+    title tool in resume step 2.
+  - **"thanks, good night":** the hook's note reached the context. The
+    model answered that the session was still on hold. Nothing was
+    renamed, and the record and note stayed.
+  - **A resume in the same session:** a work request. Before any work it
+    renamed the session "Release notes draft", ran `on-hold.py resume`
+    and deleted the note and the index it had created, then made the
+    edit. It committed nothing.
+  - **A resume in a new session**, from a second hold's pasted handoff:
+    the new session took "Release notes draft", renamed the held session
+    back by its app id, and removed the record and the note. Neither
+    session was archived. It skipped the handoff's `git fetch` and
+    checkout, since the tree was already on the branch and it read no
+    code.
+  - **Work on `main`, named mid-sentence** ("ok that's enough for today,
+    can you run /simplicity:call-it-a-day?"): the model loaded the skill
+    itself with the Skill tool. The work moved to
+    `hold/release-notes-draft` and was pushed; `main` was never committed to or pushed.
+    Whether the app asked before loading wasn't observed.
+- **Evals rerun after the fix** (`--evals 1 7`, with skill, one run per
+  cell): 51/51. Haiku 11/11 and 6/6, Sonnet 11/11 and 6/6, Opus 11/11 and
+  6/6. Every eval-1 handoff now names the seed's app id. Haiku's round-2
+  miss on eval 1, the handoff written to `/tmp`, didn't recur.
+
+Not run: more than one run per cell; the trigger set on Haiku and Opus;
+the live auto-permission-mode test, since `shift-session`'s step 1 that
+this skill follows was verified live in v0.9.0; and any live test in the
+CLI. The permission prompt before a mid-sentence load wasn't observed.
 
 ## [v0.9.0] - 2026-10-06
 
