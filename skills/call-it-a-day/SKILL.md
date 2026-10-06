@@ -49,7 +49,7 @@ Follow shift-session's step 1 with all of its rules. They are, in short:
 The changes for a hold:
 
 - **A WIP commit.** Commit the uncommitted work even when it's half-done or doesn't build: that's the point of the hold. Start the message with `WIP:` unless the project's CLAUDE.md sets another convention, and say what the work is, that it's on hold, and where it stops. Never stash, discard or reset anything, and leave stashes in place: list them as pending.
-- **The branch for default-branch work** is `hold/<topic-slug>` (the topic from step 3, lowercase, words joined by dashes) instead of `shift/<topic-slug>`. The pending item about the local default branch being ahead is the same.
+- **The branch for default-branch work** is `hold/<topic-slug>` (the topic from step 3, lowercase, words joined by dashes) instead of `shift/<topic-slug>`. The pending item about the local default branch being ahead is the same, and it stays pending: never reset, rewind or push the default branch yourself, even after the work is safe on the new branch. That reset is the user's step, once the branch merges.
 - **PR, only with `--pr`.** If the branch has no PR, open one against the default branch, always as a draft, after the push. Without `--pr`, open none. Either way, never mark a PR ready, never merge one and never enable auto-merge.
 
 Record each branch's pushed head SHA. A clean tree whose branch is already pushed needs no commit and no push; say so.
@@ -78,12 +78,12 @@ A tracker update that fails goes on the pending list and doesn't stop the hold.
 - **It opens with the resume steps**, addressed to whichever session picks the work up:
 
   > This resumes work put on hold on <date> in session `<this session's id>`, titled "<topic> -> On hold". Before anything else:
-  > 1. Rename this session "<pre-hold title>": the session title tool with `"self"` in the desktop app; in the CLI, `python3 "<absolute path of rename-session's rename-session.py>" "<pre-hold title>"`.
-  > 2. If this session isn't `<this session's id>`, give that one its title back too: the session title tool with its id in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=<this session's id>` in front. Leave it open: archiving it is the user's call.
+  > 1. Rename this session "<pre-hold title>", exactly: the session title tool with `"self"` in the desktop app; in the CLI, `python3 "<absolute path of rename-session's rename-session.py>" "<pre-hold title>"`. Don't use `/simplicity:rename-session`, which rewrites a title to its own rules.
+  > 2. If this session isn't `<this session's id>`, rename that one "<pre-hold title>" too, the same exact title: the session title tool with its id in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=<this session's id>` in front. Leave it open: archiving it is the user's call.
   > 3. Clear the hold: `rm -f ~/.claude/simplicity/call-it-a-day/<this session's id>.json`, and delete the memory note `<its path>` and its line in the memory index.
   > 4. Run `git fetch origin` and check out `<branch>` before you read any code: this may be another machine or a fresh worktree.
 
-  Leave out item 3's memory note when step 4 couldn't write one.
+  Write the real pre-hold title into items 1 and 2 every time, never a placeholder or "its title": the session that reads this can't look it up. Leave out item 3's memory note when step 4 couldn't write one.
 - **No archive line** and no "Part N": nothing starts a child.
 - **Pending** includes every item on the pending list with its next step, and, for anything that couldn't be pushed, says plainly that it exists only on this machine.
 
@@ -139,7 +139,7 @@ There's no resume command. Work resumes when the user comes back, and is detecte
 - **The transcript, in this session.** Where the hook can't run (no Python, or a cloud container that was reclaimed), this skill's text and the hold report are still in this session's context. A message in a session titled "<topic> -> On hold" that continues the work is the resume.
 - **The handoff, in a new session.** The pasted handoff prompt and the memory note both open with the resume steps.
 
-On resume, before anything else: rename the session to its pre-hold title, give the held session its title back too if it's a different one, clear the hold (`python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" resume`, which prints the pre-hold title, or delete the record file), and delete the memory note and its index line. Then carry on with what the user asked. Resuming commits nothing, pushes nothing and doesn't run this skill again. A message that only acknowledges the hold ("thanks", "good night") or asks about it isn't a resume: answer it and leave the hold in place.
+On resume, before anything else: rename the session to its exact pre-hold title, with the session title tool or `rename-session`'s helper and never with `/simplicity:rename-session`, give the held session its title back too if it's a different one, clear the hold (`python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" resume`, which prints the pre-hold title, or delete the record file), and delete the memory note and its index line. Then carry on with what the user asked. Resuming commits nothing, pushes nothing and doesn't run this skill again. A message that only acknowledges the hold ("thanks", "good night") or asks about it isn't a resume: answer it and leave the hold in place.
 
 ## Lifecycle
 

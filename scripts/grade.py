@@ -1526,12 +1526,18 @@ def cd_renames(r):
     out = []
     for i, d in enumerate(action_blocks(r)):
         name, args = d["name"], d["args"]
-        if "skill" in name.lower() or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
-            continue
         try:
             data = json.loads(args)
         except json.JSONDecodeError:
             data = None
+        if name == "Skill" and isinstance(data, dict) and "rename-session" in str(data.get("skill", "")):
+            # rename-session keeps a plain topic argument as the title, but rewrites one with a dash.
+            topic = str(data.get("args") or "").strip()
+            if topic and not re.search(r"[-–—]", topic):
+                out.append((i, cd_norm(topic), args))
+            continue
+        if "skill" in name.lower() or WRITE_TOOL.match(name) or re.search(r"append|file", name, re.I):
+            continue
         if m := re.search(r"rename-session\.py[\"']?\s+([^\n;&|]*)", args):
             out.append((i, cd_norm(" ".join(split(m.group(1)))), args))
         elif TITLE_CALL.search(name) or (re.search(r"session", name, re.I) and TITLE_CALL.search(args[:200])):
@@ -1709,6 +1715,30 @@ def cd_no_archive_of(session):
     return check
 
 
+def cd_next_steps(r, meta):
+    """sh_next_steps on the report without the printed handoff: the handoff has its own Pending section, which isn't
+    the report's Still to do list."""
+    text = FENCE_ANY.sub(lambda m: m.group(0) if m.group(2).lower() in ("json", "jsonc") else "", r)
+    return sh_next_steps(text, meta)
+
+
+def cd_commits_only(name):
+    """Every commit stages nothing but `name` (no -A, no '.', no -a)."""
+    def check(r, meta):
+        commits = mutations(r, GIT + r"commit\b")
+        bad = []
+        for c in actions(r):
+            for seg in segments(c):
+                argv = git_argv(seg)
+                if argv and argv[0] == "add" and any(a in ("-a", "-A", "--all", ".", "-u") or (not a.startswith("-") and name not in a) for a in argv[1:]):
+                    bad.append(seg[:70])
+                if argv and argv[0] == "commit" and any(a in ("-a", "--all") or a.startswith("-a") and not a.startswith("--") for a in argv[1:]):
+                    bad.append(seg[:70])
+        ok = not commits or not bad
+        return ok, f"commits {commits[:1]}, stages other files: {bad[:1]}" if bad else f"{len(commits)} commit(s), only {name}"
+    return check
+
+
 def cd_stops(*pats):
     """Stops a background task matching one of the patterns."""
     def check(r, meta):
@@ -1805,12 +1835,12 @@ CHECKS = {
                            cd_handoff_block(r"feat/csv-import", r"csv importer"), fin_no_archive, cd_no_merge],
     ("call-it-a-day", 2): [fin_no_main_push, sh_no_commit_on("main"), cd_pushes_off("main"),
                            fin_mentions(r"origin/main|ahead|reset (?:it|main|your local)|local `?main"),
-                           cd_on_hold("Search results styling"), fin_no_archive, sh_next_steps],
+                           cd_on_hold("Search results styling"), fin_no_archive, cd_next_steps],
     ("call-it-a-day", 3): [sh_no_push("feat/s3-uploads"), fin_mentions(r"\.env", r"credential|secret|aws|access key"),
                            cl_no_secret_echo("walnut-meadow-falcon"),
                            fin_mentions(r"(?:only|just) (?:exists? |lives? |is |sits? )?(?:on|in) (?:this|your|the local) (?:machine|computer|laptop|clone)|"
                                         r"local(?:ly)? only|only local(?:ly)?|not (?:yet )?(?:been )?pushed|unpushed|never pushed"),
-                           cd_on_hold("S3 receipt uploads"), fin_no_archive, sh_next_steps],
+                           cd_on_hold("S3 receipt uploads"), fin_no_archive, cd_next_steps],
     ("call-it-a-day", 4): [sh_commits, lambda r, m: fin_push_branch(r, "fix/weekend-surcharge"), sh_opens_pr,
                            sh_pr_after_push("fix/weekend-surcharge"), cd_draft_pr, cd_no_merge, sh_issue_comment(42),
                            sh_no_close, cd_on_hold("Courier rate card"), fin_no_archive],
@@ -1823,7 +1853,7 @@ CHECKS = {
     ("call-it-a-day", 7): [cd_restores("Invoice PDF export -> Part 2", other="aa11"),
                            cd_restores("Invoice PDF export -> Part 2", "local_aa11"), cd_no_hold_title, cd_clears,
                            cd_drops_note, cd_no_archive_of("aa11")],
-    ("call-it-a-day", 9): [sh_no_commit, sh_file_edit("progress.md"), sh_jira_comment("LED-88"), sh_issue_comment(19),
+    ("call-it-a-day", 9): [cd_commits_only("progress.md"), sh_file_edit("progress.md"), sh_jira_comment("LED-88"), sh_issue_comment(19),
                            sh_task_update, sh_no_close, cd_stops(r"k4p9", r"4000", r"docs:serve"),
                            cd_on_hold("Ledger reconciliation"), fin_no_archive],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,

@@ -253,7 +253,8 @@ def message(record: Mapping[str, Any]) -> str:
         "the hold in place. Otherwise the user is back and the work resumes: "
         "before anything else, rename this session to its pre-hold title "
         f'{json.dumps(title)} (the session title tool with "self" in the '
-        f"desktop app; in the CLI run {rename}), then clear the hold with "
+        f"desktop app; in the CLI run {rename}; not /simplicity:rename-session, "
+        "which rewrites titles), then clear the hold with "
         f"{clear}.{note_line} Don't commit, push or run call-it-a-day for "
         "this; then carry on with the user's request."
     )
