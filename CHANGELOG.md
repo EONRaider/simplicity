@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [v0.9.0] - Unreleased
+## [v0.9.0] - 2026-10-06
 
 A new command, `/simplicity:shift-session`, hands a session's work to a
 fresh child session before the context window bloats, and a plugin hook
