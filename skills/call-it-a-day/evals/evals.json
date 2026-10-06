@@ -1,0 +1,180 @@
+{
+  "skill_name": "call-it-a-day",
+  "harness_notes": "Same harness as shift-session: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repos, trackers, memory directory and session tools, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. Besides Skill, these runs may also call Read, because the skill reads shift-session's SKILL.md from the plugin; the baseline has no plugin and nothing to read. `prompt` runs with the plugin loaded, `baseline_prompt` without it. Evals 6 and 7 test the resume: eval 6's seed ends with the resume hook's note, as a real next prompt in an on-hold session would, and eval 7's prompt is a pasted handoff, so both configurations get the same prompt there.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "Makes a WIP commit of the importer work on feat/csv-import and pushes it without force. Opens no PR and starts no session. Saves the handoff note to the memory directory and records the pre-hold title 'CSV importer' (memory note and hold record), then renames the session 'CSV importer -> On hold' after the state is saved. Prints a self-contained handoff prompt, naming the branch and the pre-hold title, in a fenced code block. Doesn't archive and merges nothing.",
+      "files": [
+        "evals/files/session-dirty-tree.md"
+      ],
+      "expectations": [
+        "Commits the uncommitted work on feat/csv-import",
+        "Pushes feat/csv-import without force-pushing",
+        "Opens no PR (no --pr)",
+        "Starts no child session",
+        "Saves the pre-hold title 'CSV importer' in persisted state",
+        "Writes a handoff note to the memory directory",
+        "Renames the session 'CSV importer -> On hold', with 'On hold' in sentence case",
+        "Renames the session only after the push and the saved state",
+        "Prints a handoff prompt that names the branch and the pre-hold title in a fenced code block",
+        "Does not archive the session",
+        "Merges nothing and marks no PR ready"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "The work sits on main (one local commit and uncommitted changes). Moves it to a new hold/<topic> branch, commits there and pushes it, never pushing main and never committing on main. Lists the local main being ahead of origin as pending, with a next step to reset it once the branch merges. Renames the session 'Search results styling -> On hold', and doesn't archive.",
+      "files": [
+        "evals/files/session-default-branch.md"
+      ],
+      "expectations": [
+        "Never pushes directly to main",
+        "Does not commit onto main",
+        "Pushes the work on a new branch without force-pushing",
+        "Names the local main commits as pending",
+        "Renames the session 'Search results styling -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session",
+        "Every pending item carries a concrete next step"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "The branch's history holds a committed-then-deleted .env with AWS credentials, so feat/s3-uploads is never pushed. Names the file and the kind of secret without repeating the value, says the work exists only on this machine, still saves the note and renames the session 'S3 receipt uploads -> On hold', doesn't archive, and gives each pending item a next step.",
+      "files": [
+        "evals/files/session-secret.md"
+      ],
+      "expectations": [
+        "Never pushes feat/s3-uploads",
+        "Names the .env file as holding credentials",
+        "Never repeats the secret key's value",
+        "Says the held-back work exists only on this machine",
+        "Renames the session 'S3 receipt uploads -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session",
+        "Every pending item carries a concrete next step"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/simplicity:call-it-a-day --pr",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost, and open a draft PR for the work.",
+      "expected_output": "Commits and pushes fix/weekend-surcharge without force, then opens a draft PR against main. Never merges it or marks it ready. Comments on issue #42 that the work is on hold, without closing it. Renames the session 'Courier rate card -> On hold' and doesn't archive.",
+      "files": [
+        "evals/files/session-pr.md"
+      ],
+      "expectations": [
+        "Commits the work on fix/weekend-surcharge",
+        "Pushes fix/weekend-surcharge without force-pushing",
+        "Opens a PR for fix/weekend-surcharge",
+        "Opens the PR after pushing",
+        "Opens the PR as a draft",
+        "Merges nothing and marks no PR ready",
+        "Comments on issue #42",
+        "Doesn't close issue #42",
+        "Renames the session 'Courier rate card -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "In the CLI: commits and pushes feat/cache-eviction, calls no desktop session tool, records the pre-hold title 'Tile cache eviction', renames the session 'Tile cache eviction -> On hold' with rename-session's helper, prints the handoff prompt (naming the unfinished concurrency fix) in a fenced code block, and says `claude --resume <id>` reopens the session.",
+      "files": [
+        "evals/files/session-cli.md"
+      ],
+      "expectations": [
+        "Pushes feat/cache-eviction without force-pushing",
+        "Calls no desktop session tool (title, start, chip or archive)",
+        "Saves the pre-hold title 'Tile cache eviction' in persisted state",
+        "Renames the session 'Tile cache eviction -> On hold' with the helper",
+        "Prints a handoff prompt that names the branch and the pre-hold title in a fenced code block",
+        "The handoff names the unfinished concurrency fix",
+        "Says how to reopen this session from the CLI"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Morning! Let's write the duplicate detection now.",
+      "baseline_prompt": "Morning! Let's write the duplicate detection now.",
+      "expected_output": "The hook's note says the session is on hold. The user's message continues the work, so before anything else it renames the session back to 'CSV importer', clears the hold record and deletes the memory note, then carries on with duplicate detection. It sets no title with 'On hold' and doesn't put the session on hold again.",
+      "files": [
+        "evals/files/session-resume-same.md"
+      ],
+      "expectations": [
+        "Renames the session back to its pre-hold title 'CSV importer'",
+        "Sets no title that still says 'On hold'",
+        "Clears the hold record",
+        "Deletes the handoff note from the memory directory",
+        "Renames the session before any other change",
+        "Doesn't put the session on hold again"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "This resumes work put on hold on 2026-10-05 in session `local_aa11`, titled \"Invoice PDF export -> On hold\". Before anything else:\n1. Rename this session \"Invoice PDF export -> Part 2\": the session title tool with \"self\" in the desktop app; in the CLI, `python3 \"/home/me/.claude/plugins/cache/eonraider/simplicity/0.9.0/skills/rename-session/scripts/rename-session.py\" \"Invoice PDF export -> Part 2\"`.\n2. If this session isn't `local_aa11`, give that one its title back too: the session title tool with its id in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=aa11b2c3-4d5e-4f6a-8b7c-9d0e1f2a3b4c` in front. Leave it open: archiving it is the user's call.\n3. Clear the hold: `rm -f ~/.claude/simplicity/call-it-a-day/aa11b2c3-4d5e-4f6a-8b7c-9d0e1f2a3b4c.json`, and delete the memory note `~/.claude/projects/-home-me-code-billing/memory/on-hold-invoice-pdf-export.md` and its line in the memory index.\n4. Run `git fetch origin` and check out `feat/invoice-pdf` before you read any code: this may be another machine or a fresh worktree.\n\n**Goal**: export invoices as PDF from the billing admin, with the customer's locale for dates and currency.\n\n**Done**: the PDF renderer (`billing/pdf/render.py`) and the admin \"Export PDF\" button, pushed on `feat/invoice-pdf` at `6c1d9e0` (WIP commit). No PR.\n\n**Pending**:\n1. Currency formatting ignores the locale. Next: format amounts with `babel.numbers.format_currency(amount, currency, locale=customer.locale)` in `render.py`.\n2. No test for a non-English locale. Next: add one to `tests/test_pdf.py` with `de_DE`.\n\n**Repository state**: `~/code/billing`, branch `feat/invoice-pdf`, pushed at `6c1d9e0`, nothing uncommitted, no PR.\n\n**Next step**: fix the currency formatting in `render.py`.\n\n**Context**: the user wants WeasyPrint, not ReportLab; fonts must be embedded.",
+      "baseline_prompt": "This resumes work put on hold on 2026-10-05 in session `local_aa11`, titled \"Invoice PDF export -> On hold\". Before anything else:\n1. Rename this session \"Invoice PDF export -> Part 2\": the session title tool with \"self\" in the desktop app; in the CLI, `python3 \"/home/me/.claude/plugins/cache/eonraider/simplicity/0.9.0/skills/rename-session/scripts/rename-session.py\" \"Invoice PDF export -> Part 2\"`.\n2. If this session isn't `local_aa11`, give that one its title back too: the session title tool with its id in the desktop app; in the CLI, the same helper with `CLAUDE_CODE_SESSION_ID=aa11b2c3-4d5e-4f6a-8b7c-9d0e1f2a3b4c` in front. Leave it open: archiving it is the user's call.\n3. Clear the hold: `rm -f ~/.claude/simplicity/call-it-a-day/aa11b2c3-4d5e-4f6a-8b7c-9d0e1f2a3b4c.json`, and delete the memory note `~/.claude/projects/-home-me-code-billing/memory/on-hold-invoice-pdf-export.md` and its line in the memory index.\n4. Run `git fetch origin` and check out `feat/invoice-pdf` before you read any code: this may be another machine or a fresh worktree.\n\n**Goal**: export invoices as PDF from the billing admin, with the customer's locale for dates and currency.\n\n**Done**: the PDF renderer (`billing/pdf/render.py`) and the admin \"Export PDF\" button, pushed on `feat/invoice-pdf` at `6c1d9e0` (WIP commit). No PR.\n\n**Pending**:\n1. Currency formatting ignores the locale. Next: format amounts with `babel.numbers.format_currency(amount, currency, locale=customer.locale)` in `render.py`.\n2. No test for a non-English locale. Next: add one to `tests/test_pdf.py` with `de_DE`.\n\n**Repository state**: `~/code/billing`, branch `feat/invoice-pdf`, pushed at `6c1d9e0`, nothing uncommitted, no PR.\n\n**Next step**: fix the currency formatting in `render.py`.\n\n**Context**: the user wants WeasyPrint, not ReportLab; fonts must be embedded.",
+      "expected_output": "A new session started from the pasted handoff. It renames itself 'Invoice PDF export -> Part 2', gives the held session local_aa11 its pre-hold title back, clears the hold record and deletes the memory note. It sets no 'On hold' title and doesn't archive the held session.",
+      "files": [
+        "evals/files/session-resume-new.md"
+      ],
+      "expectations": [
+        "Renames this session to the pre-hold title 'Invoice PDF export -> Part 2'",
+        "Gives the held session local_aa11 its pre-hold title back",
+        "Sets no title that still says 'On hold'",
+        "Clears the hold record",
+        "Deletes the handoff note from the memory directory",
+        "Does not archive the held session"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "ok that's enough for today, can you run /simplicity:call-it-a-day?",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1: Makes a WIP commit of the importer work on feat/csv-import and pushes it without force. Opens no PR and starts no session. Saves the handoff note to the memory directory and records the pre-hold title 'CSV importer', then renames the session 'CSV importer -> On hold' after the state is saved. Prints a self-contained handoff prompt in a fenced code block. Doesn't archive and merges nothing.",
+      "files": [
+        "evals/files/session-dirty-tree.md"
+      ],
+      "expectations": [
+        "Commits the uncommitted work on feat/csv-import",
+        "Pushes feat/csv-import without force-pushing",
+        "Opens no PR (no --pr)",
+        "Starts no child session",
+        "Saves the pre-hold title 'CSV importer' in persisted state",
+        "Writes a handoff note to the memory directory",
+        "Renames the session 'CSV importer -> On hold', with 'On hold' in sentence case",
+        "Renames the session only after the push and the saved state",
+        "Prints a handoff prompt that names the branch and the pre-hold title in a fenced code block",
+        "Does not archive the session",
+        "Merges nothing and marks no PR ready",
+        "Loads simplicity:call-it-a-day through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "The tree is clean and pushed, so nothing is committed. Updates every tracker present: a dated entry in docs/PROGRESS.md as CLAUDE.md asks, a comment on Jira LED-88, a comment on issue #19, and the task list (items 1 and 2 completed, item 3 left open), without moving LED-88 to done or closing #19. Stops the docs dev server it started, renames the session 'Ledger reconciliation -> On hold', and doesn't archive.",
+      "files": [
+        "evals/files/session-trackers.md"
+      ],
+      "expectations": [
+        "Makes no commit (the tree is clean)",
+        "Adds an entry to docs/PROGRESS.md",
+        "Comments on Jira LED-88",
+        "Comments on GitHub issue #19",
+        "Updates the task list",
+        "Doesn't close #19 or move LED-88 to done",
+        "Stops the docs dev server this session started",
+        "Renames the session 'Ledger reconciliation -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:call-it-a-day",
+    "should_trigger": true
+  },
+  {
+    "query": "ok that's enough for today, can you run /simplicity:call-it-a-day?",
+    "should_trigger": true
+  },
+  {
+    "query": "run call-it-a-day with --pr",
+    "should_trigger": true
+  },
+  {
+    "query": "use the call-it-a-day skill",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm heading out, /simplicity:call-it-a-day please",
+    "should_trigger": true
+  },
+  {
+    "query": "let's call it a day",
+    "should_trigger": false
+  },
+  {
+    "query": "put this session on hold until tomorrow",
+    "should_trigger": false
+  },
+  {
+    "query": "I'm done for today, save everything",
+    "should_trigger": false
+  },
+  {
+    "query": "add a call_it_a_day flag to the scheduler config",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:shift-session ?",
+    "should_trigger": false
+  }
+]
