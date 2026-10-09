@@ -51,6 +51,12 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
 ### Changed
 
+- **README.** It now opens with a one-paragraph description, then the
+  install commands. Each table row is one sentence, and the command
+  links to its full description in `docs/commands.md`, which also holds
+  the old Notes section, grouped by skill. The Evals section moved to
+  `CONTRIBUTING.md`. No text was dropped.
+
 - **`/simplicity:just-say-it` gains an explain mode.** Give it a commit
   (`a1b2c3d`), a PR (`#16`, `PR 16` or a PR URL), a document (a file
   path, a URL, or a doc behind a connector) or a pasted snippet, and it
