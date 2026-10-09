@@ -233,6 +233,27 @@ def say_no_handoff(r, meta):
     return ok, "no open-decisions line" if ok else "spurious open-decisions line"
 
 
+DEFINED = re.compile(r"^\W{0,3}(?:\(|[—–-]\s|,\s*(?:which|meaning|that is|i\.e\.)|\s*:\s|\s+(?:means|meaning|is when|which (?:is|means)))")
+
+
+def say_plain(*terms):
+    """Explain mode: no listed jargon term in the list, unless it is defined right where it appears, as in
+    "RPO (how much data can be lost)". Terms inside `code` are names kept verbatim and don't count."""
+    def check(r, meta):
+        t = re.sub(r"`[^`]*`", "", "\n".join(body(r))).lower()
+        bad = [m.group(0) for term in terms for m in re.finditer(term, t) if not DEFINED.match(t[m.end():m.end() + 25])]
+        return not bad, f"undefined jargon: {sorted(set(bad))}" if bad else "no undefined jargon"
+    return check
+
+
+def say_not(*pats):
+    def check(r, meta):
+        t = "\n".join(body(r)).lower()
+        hit = [p for p in pats if re.search(p, t)]
+        return not hit, f"mentions {hit}" if hit else "stays on the right source"
+    return check
+
+
 # ---------- what-now checks ----------
 # A section header on its own line: `**Done**`, `## Done`, `Done:`, or a reasonable variant such as "Next steps".
 HEADS = {"done": r"(?:what'?s |what was |work )?(?:done|completed|finished|shipped)(?: so far)?",
@@ -1764,6 +1785,18 @@ CHECKS = {
     ("just-say-it", 2): SAY_COMMON + [say_covers(r"pip", r"docker", r"xdist|-n auto|parallel", r"shard|pytest-split|matrix"), say_no_handoff],
     ("just-say-it", 3): SAY_COMMON + [say_covers(r"adapter|storage", r"presigned", r"checksum|migrat"),
                                       say_names_decisions(r"s3|r2|provider", r"fallback|30.day|local")],
+    ("just-say-it", 5): SAY_COMMON + [say_covers(r"retr|try again|tries", r"10 minutes|600|longer|more time"),
+                                      say_plain(r"exponential backoff|backoff", r"jitter"), say_no_handoff],
+    ("just-say-it", 6): SAY_COMMON + [say_covers(r"deploy|update|release", r"any server|whichever server|every server|any of"),
+                                      say_plain(r"in-process", r"sticky sessions?", r"horizontal(?:ly)? scal\w*"), say_no_handoff],
+    ("just-say-it", 7): SAY_COMMON + [say_covers(r"24 hours|a day|one day", r"4 hours|four hours", r"7 days|seven days|week",
+                                                 r"month"),
+                                      say_plain(r"\brpo\b", r"\brto\b", r"point-in-time recovery", r"\bwal\b"), say_no_handoff],
+    ("just-say-it", 8): SAY_COMMON + [say_covers(r"database", r"connection|room|slots?|ran out|full", r"checkout"),
+                                      say_plain(r"connection pool", r"superuser", r"non-replication", r"\b503\b"),
+                                      say_no_handoff],
+    ("just-say-it", 9): SAY_COMMON + [say_covers(r"upload|timed? ?out|30 seconds", r"retr|try again|10 minutes|timeout"),
+                                      say_not(r"lodash", r"#2\b", r"pr 2\b", r"pull request 2\b")],
     ("what-now", 1): WN_COMMON + [wn_covers("done", r"filter|tags? (?:query|param)", r"migration|index|0007"), wn_unverified,
                                   wn_covers("now", r"test_filter_by_multiple_tags|multiple.tags|case.insensitiv|lower"),
                                   wn_order(r"pytest|tests?\b", r"\bpr\b|pull request")],

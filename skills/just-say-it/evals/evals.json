@@ -1,6 +1,6 @@
 {
   "skill_name": "just-say-it",
-  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). The format checks (label, dash or colon, one sentence, 7 items) measure the output format this skill exists to produce; the baseline prompt doesn't ask for it, so most of this skill's delta is format compliance by design. The coverage checks measure whether the content survives the compression.",
+  "harness_notes": "Each eval seeds a prior session from `files[0]` (passed via --append-system-prompt) and then sends `prompt` (with-skill, plugin loaded) or `baseline_prompt` (no plugin). The format checks (label, dash or colon, one sentence, 7 items) measure the output format this skill exists to produce; the baseline prompt doesn't ask for it, so most of this skill's delta is format compliance by design. The coverage checks measure whether the content survives the compression. Evals 5 to 9 use `session-explain.md`, whose 'Live state' section stands in for the fetches explain mode makes (the commit, the PRs and the document), since the runs have no tools beyond Skill. Eval 9 checks that a bare number stays a count even when a PR with that number exists. The jargon checks pass when a listed term is absent, or defined right where it appears.",
   "evals": [
     {
       "id": 1,
@@ -73,6 +73,100 @@
         "Covers all four causes: N+1 queries, the blocking carousel, the hero image, the session-keyed cache",
         "No open-decisions line (nothing is left open)",
         "Loads simplicity:just-say-it through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/simplicity:just-say-it a1b2c3d",
+      "baseline_prompt": "Explain commit a1b2c3d in plain words, with no technical jargon.",
+      "expected_output": "Explain mode on the commit: a numbered list saying, in plain words, that the nightly backup upload now tries again a few times with growing waits, and gets up to 10 minutes per try, so a brief network slowdown no longer fails the backup. No unexplained 'exponential backoff' or 'jitter', no open-decisions line, no opinion of its own.",
+      "files": [
+        "evals/files/session-explain.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers the retries and the longer upload time",
+        "Uses no unexplained jargon ('exponential backoff', 'jitter')",
+        "No open-decisions line"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/simplicity:just-say-it #16",
+      "baseline_prompt": "Explain pull request #16 in plain words, with no technical jargon.",
+      "expected_output": "Explain mode on PR #16: sessions move from each server's memory to a shared store, so any server can handle any user and deploys stop logging everyone out. No unexplained 'in-process', 'sticky sessions' or 'horizontal scaling'.",
+      "files": [
+        "evals/files/session-explain.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers deploys no longer signing users out and any server handling any user",
+        "Uses no unexplained jargon ('in-process', 'sticky sessions', 'horizontal scaling')",
+        "No open-decisions line"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/simplicity:just-say-it docs/backups.md",
+      "baseline_prompt": "Explain docs/backups.md in plain words, with no technical jargon.",
+      "expected_output": "Explain mode on the document: at most a day of data can be lost, service comes back within 4 hours, any moment in the last 7 days can be restored, nightly copies are kept 30 days in another region, and restores are tested monthly. No unexplained 'RPO', 'RTO' or 'point-in-time recovery'.",
+      "files": [
+        "evals/files/session-explain.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers the 24-hour and 4-hour limits, the 7-day restore window and the monthly restore test",
+        "Uses no unexplained jargon ('RPO', 'RTO', 'point-in-time recovery', 'WAL')",
+        "No open-decisions line"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/simplicity:just-say-it \"FATAL:  remaining connection slots are reserved for non-replication superuser connections\nERROR  app.db  pool exhausted: 20/20 connections in use, waited 30000ms\nWARN   worker-3  request /checkout failed after 30s, returning 503\"",
+      "baseline_prompt": "Explain this in plain words, with no technical jargon:\nFATAL:  remaining connection slots are reserved for non-replication superuser connections\nERROR  app.db  pool exhausted: 20/20 connections in use, waited 30000ms\nWARN   worker-3  request /checkout failed after 30s, returning 503",
+      "expected_output": "Explain mode on a pasted snippet: the database ran out of room for new connections, the app waited 30 seconds for one, and checkout requests failed. No unexplained 'connection pool', 'superuser' or '503'.",
+      "files": [
+        "evals/files/session-explain.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers the database running out of connections and checkout failing",
+        "Uses no unexplained jargon ('connection pool', 'superuser', 'non-replication', '503')",
+        "No open-decisions line"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/simplicity:just-say-it 2",
+      "baseline_prompt": "Summarize your last 2 responses.",
+      "expected_output": "A bare number is a count, never a PR: it summarizes the last two assistant responses (the failed uploads, and the retry and timeout fix) and says nothing about PR #2 (the lodash bump), even though the live state shows it.",
+      "files": [
+        "evals/files/session-explain.md"
+      ],
+      "expectations": [
+        "No preamble: the first line is list item 1",
+        "Every item is formatted `N. **Label** — sentence`",
+        "7 items or fewer",
+        "Every label is 4 words or fewer",
+        "Each item is a single sentence",
+        "Covers the upload timeouts and the retry fix",
+        "Says nothing about PR #2 or lodash"
       ]
     }
   ]

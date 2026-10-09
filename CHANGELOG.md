@@ -5,6 +5,38 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Changed
+
+- **`/simplicity:just-say-it` gains an explain mode.** Give it a commit
+  (`a1b2c3d`), a PR (`#16`, `PR 16` or a PR URL), a document (a file
+  path, a URL, or a doc behind a connector) or a pasted snippet, and it
+  explains it in the same numbered format, in plain words with no
+  technical jargon.
+  - **Argument rules, checked in order.** Empty and bare numbers from 1
+    to 999 keep their meaning (a count), as do "N text" and topics. A
+    bare number is never a PR: `#16` is. A word of 7 to 40 hex
+    characters with a digit is a commit only if it resolves. Anything
+    that matches no rule is still a topic.
+  - **The hard limits are rewritten on purpose.** Summarize mode keeps
+    "no new information" and "no tool calls". Explain mode may make
+    read-only calls for the one item named, and may add only plain-word
+    definitions: no opinions, review, risks or corrections. It never adds
+    the open-decisions line.
+  - **The README note** "`just-say-it` only compresses" now describes
+    both modes.
+  - **Evals.** Five new evals on one seed, with a "Live state" standing
+    in for the fetches: a commit, a PR, a document, a pasted snippet, and
+    a bare `2` that must stay a count even though PR #2 exists. A
+    `say_plain` check fails on a listed jargon term unless it is defined
+    where it appears. The trigger set swaps two queries for
+    `/simplicity:just-say-it #16` (should trigger) and "explain commit
+    a1b2c3d in plain words" (shouldn't). Not run yet: no benchmark numbers
+    for explain mode.
+  - **The security-scan marker is now stale.** Per `RELEASING.md`, the
+    release's scan rewrites it.
+
 ## [v0.10.0] - 2026-10-06
 
 A new command, `/simplicity:call-it-a-day`, puts a session on hold at the
