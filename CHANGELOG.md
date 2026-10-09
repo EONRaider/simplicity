@@ -52,9 +52,9 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 ### Changed
 
 - **README.** It now opens with a one-paragraph description, then the
-  install commands. Each table row is one sentence, with the full text
-  behind a "Read more" toggle. The Notes section moved to
-  `docs/notes.md`, grouped by skill, and the Evals section moved to
+  install commands. Each table row is one sentence, and the command
+  links to its full description in `docs/commands.md`, which also holds
+  the old Notes section, grouped by skill. The Evals section moved to
   `CONTRIBUTING.md`. No text was dropped.
 
 - **`/simplicity:just-say-it` gains an explain mode.** Give it a commit
