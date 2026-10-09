@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:just-move",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm heading out, can you run /simplicity:just-move first?",
+    "should_trigger": true
+  },
+  {
+    "query": "run just-move before I leave",
+    "should_trigger": true
+  },
+  {
+    "query": "/simplicity:just-move migration",
+    "should_trigger": true
+  },
+  {
+    "query": "use just-move",
+    "should_trigger": true
+  },
+  {
+    "query": "just move on",
+    "should_trigger": false
+  },
+  {
+    "query": "keep going without me",
+    "should_trigger": false
+  },
+  {
+    "query": "ok, move on to the next task",
+    "should_trigger": false
+  },
+  {
+    "query": "I'll be away for a few hours, keep working",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:just-ask ?",
+    "should_trigger": false
+  }
+]
