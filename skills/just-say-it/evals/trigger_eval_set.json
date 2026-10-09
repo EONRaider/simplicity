@@ -16,15 +16,11 @@
     "should_trigger": true
   },
   {
-    "query": "use just-say-it",
+    "query": "/simplicity:just-say-it #16",
     "should_trigger": true
   },
   {
     "query": "summarize that",
-    "should_trigger": false
-  },
-  {
-    "query": "tl;dr please",
     "should_trigger": false
   },
   {
@@ -37,6 +33,10 @@
   },
   {
     "query": "can you run /simplicity:what-now ?",
+    "should_trigger": false
+  },
+  {
+    "query": "explain commit a1b2c3d in plain words",
     "should_trigger": false
   }
 ]
