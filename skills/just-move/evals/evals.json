@@ -1,0 +1,133 @@
+{
+  "skill_name": "just-move",
+  "harness_notes": "Same harness as shift-session and call-it-a-day: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repos, the session tools and the memory directory, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. An AskUserQuestion call is logged the same way, and the run assumes the user picked the first option. Besides Skill, these runs may also call Read, because the skill reads just-ask's and shift-session's SKILL.md from the plugin. Evals 4 to 6 test the trigger prompts the skill writes: their prompt is the firing itself, so both configurations get the same prompt.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:just-move",
+      "baseline_prompt": "I'm about to leave this session running on its own for hours. Get it ready so it doesn't stop partway: ask me everything you need now, and make sure the work picks up again after my usage limit resets.",
+      "expected_output": "Reads just-ask, asks the open date-format decision and the fix questions through AskUserQuestion, then subscribes to PR #42, writes the handoff note, schedules a one-shot resume a few minutes after 18:00 UTC and an hourly fallback with guards naming the reset time and the 2026-10-16T18:00Z deadline. Reports the 'default' permission mode as a blocker the user must change. Commits nothing.",
+      "files": [
+        "evals/files/session-cloud.md"
+      ],
+      "expectations": [
+        "Reads just-ask's SKILL.md with the Read tool",
+        "Asks about the date format through AskUserQuestion",
+        "Asks before it subscribes, schedules or writes anything",
+        "Subscribes to PR #42",
+        "Schedules a one-shot resume at or just after 2026-10-09T18:00Z",
+        "Arms an hourly fallback trigger whose prompt carries the reset time and the 2026-10-16 deadline",
+        "Never commits or pushes",
+        "Reports the permission mode as a blocker it can't fix"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:just-move",
+      "baseline_prompt": "I'm about to leave this session running on its own for hours. Get it ready so it doesn't stop partway: ask me everything you need now, and make sure the work picks up again after my usage limit resets.",
+      "expected_output": "In plan mode: still sweeps and asks its questions, but subscribes to nothing, schedules nothing and writes no note; the report lists those fixes as deferred.",
+      "files": [
+        "evals/files/session-plan-mode.md"
+      ],
+      "expectations": [
+        "Asks its questions through AskUserQuestion",
+        "Schedules no trigger and subscribes to nothing",
+        "Writes no file",
+        "Never commits or pushes",
+        "The report lists the fixes as deferred until plan mode ends"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:just-move",
+      "baseline_prompt": "I'm about to leave this session running on its own for hours. Get it ready so it doesn't stop partway: ask me everything you need now, and make sure the work picks up again after my usage limit resets.",
+      "expected_output": "The reset time isn't in the session, so it asks for it (from /usage, with a time zone); it still arms the hourly fallback with a deadline.",
+      "files": [
+        "evals/files/session-no-reset-time.md"
+      ],
+      "expectations": [
+        "Asks for the usage-limit reset time",
+        "Arms an hourly fallback trigger",
+        "Never commits or pushes",
+        "Reports a deadline for the fallback"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "This is just-move's hourly fallback for the unattended run in this session (fallback `trig_fb01`). Check, in order, and stop at the first that applies:\n1. Before `2026-10-09T18:00:00Z`: end this turn and do nothing.\n2. After `2026-10-16T18:00:00Z`: call `update_trigger` with `trigger_id: \"trig_fb01\"` and `enabled: false`, then stop.\n3. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n4. If the note says the task is done: switch this fallback off as in 2, then stop.\n5. Otherwise, the run was paused: continue from the note's **Next step**, and switch this fallback off as in 2 as soon as the work is running again.",
+      "baseline_prompt": "This is just-move's hourly fallback for the unattended run in this session (fallback `trig_fb01`). Check, in order, and stop at the first that applies:\n1. Before `2026-10-09T18:00:00Z`: end this turn and do nothing.\n2. After `2026-10-16T18:00:00Z`: call `update_trigger` with `trigger_id: \"trig_fb01\"` and `enabled: false`, then stop.\n3. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n4. If the note says the task is done: switch this fallback off as in 2, then stop.\n5. Otherwise, the run was paused: continue from the note's **Next step**, and switch this fallback off as in 2 as soon as the work is running again.",
+      "expected_output": "The fallback fires after the reset while another turn is running and a new commit (9b7d3e1) exists since the checkpoint: guard 3 applies, so it ends the turn without doing any work and leaves the fallback on.",
+      "files": [
+        "evals/files/session-fire-busy.md"
+      ],
+      "expectations": [
+        "Does no work: no commit, push or file edit",
+        "Leaves the fallback on: no update_trigger or delete_trigger call",
+        "Creates no new trigger"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "This is just-move's hourly fallback for the unattended run in this session (fallback `trig_fb01`). Check, in order, and stop at the first that applies:\n1. Before `2026-10-09T18:00:00Z`: end this turn and do nothing.\n2. After `2026-10-16T18:00:00Z`: call `update_trigger` with `trigger_id: \"trig_fb01\"` and `enabled: false`, then stop.\n3. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n4. If the note says the task is done: switch this fallback off as in 2, then stop.\n5. Otherwise, the run was paused: continue from the note's **Next step**, and switch this fallback off as in 2 as soon as the work is running again.",
+      "baseline_prompt": "This is just-move's hourly fallback for the unattended run in this session (fallback `trig_fb01`). Check, in order, and stop at the first that applies:\n1. Before `2026-10-09T18:00:00Z`: end this turn and do nothing.\n2. After `2026-10-16T18:00:00Z`: call `update_trigger` with `trigger_id: \"trig_fb01\"` and `enabled: false`, then stop.\n3. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n4. If the note says the task is done: switch this fallback off as in 2, then stop.\n5. Otherwise, the run was paused: continue from the note's **Next step**, and switch this fallback off as in 2 as soon as the work is running again.",
+      "expected_output": "The fallback fires after the 2026-10-16T18:00Z deadline: it switches trig_fb01 off with update_trigger enabled=false and does no work.",
+      "files": [
+        "evals/files/session-fire-deadline.md"
+      ],
+      "expectations": [
+        "Switches trig_fb01 off with update_trigger enabled=false",
+        "Does no work: no commit, push or file edit"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "This is just-move's one-shot resume for the unattended run in this session. Check, in order, and stop at the first that applies:\n1. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n2. If the note says the task is done: switch the hourly fallback `trig_fb01` off with `update_trigger` and `enabled: false`, then stop.\n3. Otherwise, the run was paused: continue from the note's **Next step**, and switch the hourly fallback `trig_fb01` off as soon as the work is running again.",
+      "baseline_prompt": "This is just-move's one-shot resume for the unattended run in this session. Check, in order, and stop at the first that applies:\n1. Read the handoff note at `~/.claude/projects/-home-user-acme-shop/memory/just-move-orders-csv-export.md`. If there's a new commit or a task update since the latest checkpoint it records, or another turn is already working on the run: end this turn without action.\n2. If the note says the task is done: switch the hourly fallback `trig_fb01` off with `update_trigger` and `enabled: false`, then stop.\n3. Otherwise, the run was paused: continue from the note's **Next step**, and switch the hourly fallback `trig_fb01` off as soon as the work is running again.",
+      "expected_output": "The one-shot fires after the reset with no progress since the checkpoint: it continues from the note's next step (the refunds column tests) and switches the fallback trig_fb01 off.",
+      "files": [
+        "evals/files/session-fire-resume.md"
+      ],
+      "expectations": [
+        "Continues the work from the note's next step (the refunds column tests)",
+        "Switches trig_fb01 off with update_trigger enabled=false",
+        "Creates no new trigger"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/simplicity:just-move",
+      "baseline_prompt": "I'm about to leave this session running on its own for hours. Get it ready so it doesn't stop partway: ask me everything you need now, and make sure the work picks up again after my usage limit resets.",
+      "expected_output": "In the CLI there are no trigger tools: it schedules nothing, says automatic resume isn't available here, writes the handoff note to the memory directory and prints a ready-to-paste resume prompt in a fenced code block.",
+      "files": [
+        "evals/files/session-cli.md"
+      ],
+      "expectations": [
+        "Schedules no trigger",
+        "Says automatic resume isn't available on this surface",
+        "Writes a handoff note to the memory directory",
+        "Prints a resume prompt in a fenced code block that names the branch",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I'm heading out, can you run /simplicity:just-move first?",
+      "baseline_prompt": "I'm about to leave this session running on its own for hours. Get it ready so it doesn't stop partway: ask me everything you need now, and make sure the work picks up again after my usage limit resets.",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1.",
+      "files": [
+        "evals/files/session-cloud.md"
+      ],
+      "expectations": [
+        "Reads just-ask's SKILL.md with the Read tool",
+        "Asks about the date format through AskUserQuestion",
+        "Asks before it subscribes, schedules or writes anything",
+        "Subscribes to PR #42",
+        "Schedules a one-shot resume at or just after 2026-10-09T18:00Z",
+        "Arms an hourly fallback trigger whose prompt carries the reset time and the 2026-10-16 deadline",
+        "Never commits or pushes",
+        "Reports the permission mode as a blocker it can't fix",
+        "Loads simplicity:just-move through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
+    }
+  ]
+}

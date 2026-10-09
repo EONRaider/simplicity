@@ -9,7 +9,7 @@ so it counts against your Claude plan's usage limits, or bills your API key if o
 Every run is isolated from the machine it runs on: user-level settings, skills and plugins are skipped
 (--setting-sources project,local), MCP servers and claude.ai connectors are skipped (--strict-mcp-config), and the
 only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes; call-it-a-day's runs
-also get the read-only Read, since that skill reads shift-session's SKILL.md. Everything else the
+and just-move's runs also get the read-only Read, since those skills read other skills' SKILL.md files. Everything else the
 model would do is logged as a JSON action block instead of executed.
 
 Usage: python3 scripts/run_evals.py --iteration <fresh-name> --runs 5 [--skills just-ask] [--models haiku sonnet opus] [--configs with_skill]
@@ -71,12 +71,16 @@ CALL_NOTE = ACTIONS_NOTE.replace(
     "You can't run any tool, except Skill to load a different skill that your instructions tell you to run;",
     "You can't run any tool, except Skill to load a different skill that your instructions tell you to run, and Read "
     "to read a file your instructions tell you to read;")
+MOVE_NOTE = CALL_NOTE + (
+    " When you would ask the user something with AskUserQuestion, log the call as an action block with its full "
+    "input, assume the user picked the first option of each question, and carry on.")
 NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
          "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE,
-         "call-it-a-day": CALL_NOTE}
+         "call-it-a-day": CALL_NOTE, "just-move": MOVE_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config"]
-# call-it-a-day reads shift-session's SKILL.md from the plugin, so its runs also get Read. Read is read-only.
-TOOLS = {"call-it-a-day": "Skill,Read"}
+# call-it-a-day reads shift-session's SKILL.md, and just-move reads just-ask's and shift-session's, so their runs also
+# get Read. Read is read-only.
+TOOLS = {"call-it-a-day": "Skill,Read", "just-move": "Skill,Read"}
 
 
 def now():
@@ -167,7 +171,8 @@ def run_one(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
-                                                 "rename-session", "promptfy", "shift-session", "call-it-a-day"])
+                                                 "rename-session", "promptfy", "shift-session", "call-it-a-day",
+                                                 "just-move"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

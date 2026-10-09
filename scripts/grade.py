@@ -1750,6 +1750,133 @@ def cd_stops(*pats):
     return check
 
 
+# ---------- just-move checks ----------
+SCHEDULE = re.compile(r"send_?later|create_?trigger", re.I)
+SUBSCRIBE = re.compile(r"subscribe_?pr_?activity", re.I)
+STOP_TRIGGER = re.compile(r"update_?trigger|delete_?trigger", re.I)
+
+
+def jm_idx(r, pattern):
+    return [i for i, d in enumerate(action_blocks(r)) if pattern.search(d["name"])]
+
+
+def jm_writes(r):
+    """Indexes of actions that write a file: a Write/Edit tool, or a shell command with a redirect or tee."""
+    return [i for i, d in enumerate(action_blocks(r)) if WRITE_TOOL.match(d["name"])
+            or (re.search(r"bash|shell", d["name"], re.I) and any(SHELL_WRITE.search(s) and not git_argv(s)
+                                                                  for s in segments(d["args"])))]
+
+
+def jm_reads(name):
+    """A Read call on <name>'s SKILL.md, the way the skill reuses its neighbours."""
+    def check(r, meta):
+        hit = [d for d in action_blocks(r) if d["name"] == "Read" and f"{name}/SKILL.md" in d["args"]]
+        return bool(hit), f"read {name}/SKILL.md" if hit else f"no Read of {name}/SKILL.md"
+    return check
+
+
+def jm_auq(*pats):
+    def check(r, meta):
+        hit = [raw(d).lower() for d in action_blocks(r) if "askuserquestion" in d["name"].lower()]
+        ok = [q for q in hit if all(re.search(p, q) for p in pats)]
+        return bool(ok), f"{len(hit)} AskUserQuestion call(s), matching: {len(ok)}"
+    return check
+
+
+def jm_asks_first(r, meta):
+    asks = sh_asks(r)
+    acts = sorted(jm_idx(r, SCHEDULE) + jm_idx(r, SUBSCRIBE) + jm_writes(r))
+    ok = bool(asks) and (not acts or asks[0] < acts[0])
+    return ok, f"first ask at {asks[:1]}, first fix at {acts[:1]}"
+
+
+def jm_subscribes(pr):
+    def check(r, meta):
+        hit = [d["args"] for d in action_blocks(r) if SUBSCRIBE.search(d["name"]) and re.search(rf"\b{pr}\b", d["args"])]
+        return bool(hit), f"subscribed to #{pr}" if hit else f"no subscribe_pr_activity for #{pr}"
+    return check
+
+
+def jm_one_shot(when):
+    """A one-shot resume (send_later, or create_trigger with run_once_at) at a time matching `when`."""
+    def check(r, meta):
+        hit = [d["args"] for d in action_blocks(r) if SCHEDULE.search(d["name"]) and "cron" not in d["args"].lower()
+               and re.search(when, d["args"])]
+        return bool(hit), f"one-shot: {hit[0][:80]!r}" if hit else "no one-shot resume at the reset time"
+    return check
+
+
+def jm_fallback(*pats):
+    """A cron trigger whose input carries every pattern (the reset time and the deadline in its guards)."""
+    def check(r, meta):
+        crons = [d["args"] for d in action_blocks(r) if re.search(r"create_?trigger", d["name"], re.I)
+                 and re.search(r"cron", d["args"], re.I)]
+        ok = [a for a in crons if all(re.search(p, a, re.I) for p in pats)]
+        return bool(ok), f"{len(crons)} cron trigger(s), {len(ok)} with {list(pats)}"
+    return check
+
+
+def jm_no_schedule(r, meta):
+    hit = jm_idx(r, SCHEDULE) + jm_idx(r, SUBSCRIBE)
+    return not hit, f"scheduled or subscribed at {hit}" if hit else "nothing scheduled or subscribed"
+
+
+def jm_no_new_trigger(r, meta):
+    hit = jm_idx(r, SCHEDULE)
+    return not hit, f"new trigger at {hit}" if hit else "no new trigger"
+
+
+def jm_no_write(r, meta):
+    hit = jm_writes(r)
+    return not hit, f"file write at {hit}" if hit else "no file written"
+
+
+def jm_no_work(r, meta):
+    hit = jm_writes(r) + [i for i, d in enumerate(action_blocks(r)) for seg in segments(raw(d))
+                          if re.search(MUTATE, seg.lower())]
+    return not hit, f"work at {sorted(set(hit))}" if hit else "no commit, push or file edit"
+
+
+def jm_no_stop(r, meta):
+    hit = jm_idx(r, STOP_TRIGGER)
+    return not hit, f"trigger changed at {hit}" if hit else "fallback left on"
+
+
+def jm_disables(trig):
+    def check(r, meta):
+        hit = [d["args"] for d in action_blocks(r) if re.search(r"update_?trigger", d["name"], re.I)
+               and trig in d["args"] and re.search(r"enabled\W{0,4}false", d["args"], re.I)]
+        return bool(hit), f"disabled {trig}" if hit else f"no update_trigger enabled=false on {trig}"
+    return check
+
+
+def jm_continues(*pats):
+    def check(r, meta):
+        hit = [raw(d)[:80] for d in action_blocks(r) if any(re.search(p, raw(d), re.I) for p in pats)]
+        return bool(hit), f"work: {hit[0]!r}" if hit else "didn't continue the work"
+    return check
+
+
+def jm_memory_note(r, meta):
+    hit = [i for i in jm_writes(r) if re.search(r"memory", (d := action_blocks(r)[i])["args"])
+           and re.search(r"just-move", d["args"])]
+    return bool(hit), "wrote the just-move note to memory" if hit else "no handoff note in the memory directory"
+
+
+def jm_resume_prompt(branch):
+    def check(r, meta):
+        hit = [f for f in text_fences(r) if branch in f]
+        return bool(hit), "resume prompt in a fenced block" if hit else f"no fenced resume prompt naming {branch}"
+    return check
+
+
+JM_NO_AUTO = (r"(?:automatic|auto)[- ]?resum\w*[^.\n]{0,60}(?:not|n't|unavailable)|(?:not|n't|no|without)[^.\n]{0,60}"
+              r"(?:automatic|auto)[- ]?resum|can'?t (?:schedule|resume)|cannot (?:schedule|resume)|no (?:remote )?triggers?")
+JM_CLOUD = [jm_reads("just-ask"), jm_auq(r"date|iso|format"), jm_asks_first, jm_subscribes(42),
+            jm_one_shot(r"2026-10-09T18:\d\d"), jm_fallback(r"2026-10-09T18:00|18:00", r"2026-10-16"), cl_no_commit_push,
+            fin_mentions(r"permission", r"default|accept ?edits|\bauto\b")]
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -1865,9 +1992,20 @@ CHECKS = {
     ("promptfy", 2): [pf_verbatim("fix the footer"), pf_names(r"footer\.tsx", r"legacyfooter\.astro"), pf_asks,
                       pf_no_side_effects],
     ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
+    ("just-move", 1): JM_CLOUD,
+    ("just-move", 2): [jm_auq(r"."), jm_no_schedule, jm_no_write, cl_no_commit_push,
+                       fin_mentions(r"defer|after plan mode|once plan mode|when plan mode|plan mode ends|leave plan mode")],
+    ("just-move", 3): [cl_asks(r"reset|/usage|usage limit"), jm_fallback(), cl_no_commit_push,
+                       fin_mentions(r"deadline|7 days|seven days")],
+    ("just-move", 4): [jm_no_work, jm_no_stop, jm_no_new_trigger],
+    ("just-move", 5): [jm_disables("trig_fb01"), jm_no_work],
+    ("just-move", 6): [jm_continues(r"refunds_csv\.test", r"npm test"), jm_disables("trig_fb01"), jm_no_new_trigger],
+    ("just-move", 7): [jm_no_new_trigger, fin_mentions(JM_NO_AUTO), jm_memory_note, jm_resume_prompt("feat/cache-eviction"),
+                       cl_no_commit_push],
 }
 # A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
-MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3, "call-it-a-day": 8}
+MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3, "call-it-a-day": 8,
+                "just-move": 8}
 CHECKS.update({(skill, eid): CHECKS[(skill, 1)] + [loads_skill(skill)] for skill, eid in MID_SENTENCE.items()})
 
 

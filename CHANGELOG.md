@@ -5,6 +5,50 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Added
+
+- **`/simplicity:just-move [focus]`.** Gets a session ready to run on
+  its own for as long as possible, including across usage-limit resets.
+  - **Asks everything up front.** It reads `just-ask`'s SKILL.md and
+    follows its sweep, filter, rank and question rules, then adds the
+    blockers an unattended run hits: the permission mode, commands that
+    would prompt, network refusals, missing credentials or CLI tools,
+    disk, unwatched PRs, existing check-ins, context headroom and
+    uncommitted work. Every decision and every fix goes into one queue of
+    `AskUserQuestion` rounds.
+  - **Fixes only on a yes.** It subscribes to the agreed PRs and writes a
+    handoff note (`just-move-<topic>.md` in the memory directory, with
+    `shift-session`'s handoff sections and a checkpoint line). It never
+    commits, pushes, discards, bypasses a check, changes permission
+    settings or messages a person.
+  - **Resumes after the usage limit resets.** It asks for the reset time
+    from `/usage` unless the session already gives it, and repeats it in
+    UTC. In cloud sessions it schedules a `send_later` one-shot a few
+    minutes after the reset, plus an hourly `create_trigger` fallback.
+    The fallback's prompt checks, in order: before the reset, do nothing;
+    after a deadline of reset + 7 days, switch itself off; if the note's
+    checkpoint shows the run moving, do nothing; if the task is done,
+    switch off; otherwise resume and switch off. Without the trigger
+    tools, as in the CLI, it says automatic resume isn't available and
+    prints a resume prompt to paste.
+  - **Plan mode.** It still asks its questions, and defers every fix to
+    the report.
+  - **Model invocation stays on**, so it can be named mid-sentence and
+    shows up in Claude's skill list. Commit `b9d2b53` found that
+    `disable-model-invocation` hides a skill and makes Claude call it
+    uninstalled. Every action it takes needs the user's yes, and each one
+    can be undone.
+  - **Evals.** Eight seeded evals and a 10-query trigger set, with
+    "just move on" and "keep going without me" as should-not-trigger.
+    They cover a cloud session, plan mode, a missing reset time, a
+    fallback firing while the run is busy, the deadline passing, the
+    one-shot resuming the work, the CLI, and a mid-sentence call. Not
+    run yet: no benchmark numbers for this skill.
+  - **No security-scan marker yet.** Per `RELEASING.md`, the
+    `.security-scan-passed` marker is written by the release's scan.
+
 ## [v0.10.0] - 2026-10-06
 
 A new command, `/simplicity:call-it-a-day`, puts a session on hold at the
