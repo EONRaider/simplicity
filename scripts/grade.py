@@ -1891,10 +1891,22 @@ def jm_resume_prompt(branch):
     return check
 
 
+# Actions that only carry text: a handoff note, a question, a scheduled prompt. A `git push` quoted in one is not a push.
+JM_TEXT_ONLY = {"write", "edit", "write_file", "edit_file", "write/edit", "askuserquestion", "update-config",
+                "send_later", "create_trigger", "update_trigger"}
+
+
+def jm_no_commit_push(r, meta):
+    pat = GIT + r"(commit|push)\b"
+    hit = [seg[:80] for d in action_blocks(r) if (d["name"].split() or [""])[0].lower() not in JM_TEXT_ONLY
+           for seg in segments(raw(d).lower()) if re.search(pat, seg)]
+    return not hit, f"commit/push: {hit[:1]}" if hit else "no commit or push"
+
+
 JM_NO_AUTO = (r"(?:automatic|auto)[- ]?resum\w*[^.\n]{0,60}(?:not|n't|unavailable)|(?:not|n't|no|without)[^.\n]{0,60}"
               r"(?:automatic|auto)[- ]?resum|can'?t (?:schedule|resume)|cannot (?:schedule|resume)|no (?:remote )?triggers?")
 JM_CLOUD = [jm_reads("just-ask"), jm_auq(r"date|iso|format"), jm_asks_first, jm_subscribes(42),
-            jm_one_shot(r"2026-10-09T18:\d\d"), jm_fallback(r"2026-10-09T18:00|18:00", r"2026-10-16"), cl_no_commit_push,
+            jm_one_shot(r"2026-10-09T18:\d\d"), jm_fallback(r"2026-10-09T18:00|18:00", r"2026-10-16"), jm_no_commit_push,
             fin_mentions(r"permission", r"default|accept ?edits|\bauto\b")]
 
 
@@ -2026,15 +2038,15 @@ CHECKS = {
                       pf_no_side_effects],
     ("promptfy", 3): [pf_ratio(TIGHT_PROMPT), pf_meta(fin_mentions(TIGHT)), pf_no_side_effects],
     ("just-move", 1): JM_CLOUD,
-    ("just-move", 2): [jm_auq(r"."), jm_no_schedule, jm_no_write, cl_no_commit_push,
+    ("just-move", 2): [jm_auq(r"."), jm_no_schedule, jm_no_write, jm_no_commit_push,
                        fin_mentions(r"defer|after plan mode|once plan mode|when plan mode|plan mode ends|leave plan mode")],
-    ("just-move", 3): [cl_asks(r"reset|/usage|usage limit"), jm_fallback(), cl_no_commit_push,
+    ("just-move", 3): [cl_asks(r"reset|/usage|usage limit"), jm_fallback(), jm_no_commit_push,
                        fin_mentions(r"deadline|7 days|seven days")],
     ("just-move", 4): [jm_no_work, jm_no_stop, jm_no_new_trigger],
     ("just-move", 5): [jm_disables("trig_fb01"), jm_no_work],
     ("just-move", 6): [jm_continues(r"refunds_csv\.test", r"npm test"), jm_disables("trig_fb01"), jm_no_new_trigger],
     ("just-move", 7): [jm_no_new_trigger, fin_mentions(JM_NO_AUTO), jm_memory_note, jm_resume_prompt("feat/cache-eviction"),
-                       cl_no_commit_push],
+                       jm_no_commit_push],
 }
 # A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
 MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3, "call-it-a-day": 8,
