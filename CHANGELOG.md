@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [v0.11.0] - 2026-10-09
+## [v0.11.0] - 2026-10-19
 
 ### Added
 
@@ -44,8 +44,8 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     "just move on" and "keep going without me" as should-not-trigger.
     They cover a cloud session, plan mode, a missing reset time, a
     fallback firing while the run is busy, the deadline passing, the
-    one-shot resuming the work, the CLI, and a mid-sentence call. Not
-    run yet: no benchmark numbers for this skill.
+    one-shot resuming the work, the CLI, and a mid-sentence call.
+    Results are under Evidence below.
   - **Security scan.** This release's scan came back clean and wrote
     the skill's first `.security-scan-passed` marker.
 
@@ -80,10 +80,63 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     `say_plain` check fails on a listed jargon term unless it is defined
     where it appears. The trigger set swaps two queries for
     `/simplicity:just-say-it #16` (should trigger) and "explain commit
-    a1b2c3d in plain words" (shouldn't). Not run yet: no benchmark numbers
-    for explain mode.
+    a1b2c3d in plain words" (shouldn't). Results are under Evidence
+    below.
   - **Security scan.** The edit made the old marker stale. This
     release's scan came back clean and rewrote it.
+
+- **Grader: `just-move`'s "Never commits or pushes" check reads only
+  actions that can run a command.** It failed 27 with-skill and 37
+  baseline runs on `git commit` or `git push` quoted inside a handoff
+  note (Write, Edit), a question (AskUserQuestion), a scheduled prompt
+  or a settings change. None of those runs committed or pushed. The new
+  `jm_no_commit_push` skips those text-only actions. `call-it-a-day` and
+  `shift-session` keep the old check, so their published numbers are
+  unchanged.
+
+### Evidence
+
+- **Unit tests and linters:** pytest (162 tests across the four helpers),
+  ruff, `mypy --strict`, `claude plugin validate .`, and CI's
+  manifest/evals check.
+- **Evals** (`python3 scripts/run_evals.py --iteration v0.11.0 --skills
+  just-move just-say-it --runs 5`): 510 runs, all 17 evals of both
+  skills, with and without the skill, 5 runs per cell, on
+  claude-haiku-5-5, claude-sonnet-5-5 and claude-opus-5-5, Claude Code
+  2.1.299. Graded after the grader fix above. Checks passed:
+
+  | Model | `just-move`, with skill | without | `just-say-it`, with skill | without | explain mode (evals 5–9), with skill | without |
+  |---|---|---|---|---|---|---|
+  | claude-haiku-5-5 | 190/195 | 112/195 | 295/340 | 158/340 | 165/195 | 99/195 |
+  | claude-sonnet-5-5 | 195/195 | 128/195 | 323/340 | 153/340 | 183/195 | 91/195 |
+  | claude-opus-5-5 | 190/195 | 117/195 | 333/340 | 156/340 | 189/195 | 96/195 |
+
+  - **`just-move`'s misses with the skill:**
+    - Haiku left out the hourly fallback trigger in 2 of 5 runs of the
+      missing-reset-time eval (eval 3), missed the one-shot and the
+      fallback in one mid-sentence run (eval 8), and in one one-shot
+      resume (eval 6) didn't continue from the note's next step.
+    - One Opus mid-sentence run (eval 8) missed all five of the
+      cloud-session checks: no question, no subscription, no schedule.
+  - **`just-say-it`'s misses with the skill,** mostly Haiku (45 of the
+    69):
+    - **Explaining a document (eval 7)** is Haiku's weakest case: 23/40,
+      against 20/40 without the skill. It broke the list format, added a
+      preamble, went past 7 items or 4-word labels, and left out some of
+      the backup limits.
+    - **Jargon** left undefined: Haiku on the error snippet (eval 8, 4
+      of 5 runs), Sonnet on "RPO", "RTO" and "WAL" in the document
+      (eval 7, 3 of 5).
+    - **More than one sentence per item** across evals and models, the
+      most common miss for Sonnet and Opus.
+    - Opus and Sonnet each left out a point of the PR explanation
+      (eval 6) in some runs.
+  - The bare `2` (eval 9) stayed a count in every run on every model.
+  - An earlier attempt on 2026-10-09 and 2026-10-10 ran 189 of these
+    cells on claude-haiku-4-5, claude-sonnet-5 and claude-opus-5. Those
+    runs were set aside and rerun on the models above, so every number
+    here comes from one model set.
+- **Not run:** the two trigger sets, and more than 5 runs per cell.
 
 ## [v0.10.0] - 2026-10-06
 
