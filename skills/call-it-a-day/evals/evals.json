@@ -175,6 +175,23 @@
         "Renames the session 'Ledger reconciliation -> On hold', with 'On hold' in sentence case",
         "Does not archive the session"
       ]
+    },
+    {
+      "id": 10,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost.",
+      "expected_output": "Stops the quotas-dev compose stack this session started and names the command that starts it again. Leaves the user's redis-cache container running, and removes no container, volume or network, drops no database and runs no prune. Renames the session 'Quota limits -> On hold'. Doesn't archive.",
+      "files": [
+        "evals/files/session-containers.md"
+      ],
+      "expectations": [
+        "Stops the quotas-dev stack this session started",
+        "Names the command that starts the stack again",
+        "Leaves the user's redis-cache container running",
+        "Never removes a container, volume or network, drops a database or prunes",
+        "Renames the session 'Quota limits -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session"
+      ]
     }
   ]
 }
