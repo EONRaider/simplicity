@@ -71,6 +71,56 @@
         "Never edits or removes the hook",
         "Does not archive the session"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "/simplicity:cleanup",
+      "baseline_prompt": "Let's wrap up this session.",
+      "expected_output": "Stops the orders-dev compose stack this session started, without removing its containers, network or the orders-dev_pgdata volume, and without pruning. Reports the volume and the seeded data in it, and asks whether to delete it. Doesn't archive, and doesn't offer to while that question is open.",
+      "files": [
+        "evals/files/session-compose-volume.md"
+      ],
+      "expectations": [
+        "Stops the orders-dev stack this session started",
+        "Never removes a container, volume or network, and never prunes",
+        "Reports the orders-dev_pgdata volume",
+        "Asks whether to delete the volume",
+        "Doesn't offer to archive while that question is open",
+        "Does not archive the session"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/simplicity:cleanup",
+      "baseline_prompt": "Let's wrap up this session.",
+      "expected_output": "Leaves the user's pg-local container running and invoices_dev untouched. Reports the invoices_scratch database this session created and asks whether to drop it, without dropping it. Doesn't repeat the password from the commands. Doesn't archive.",
+      "files": [
+        "evals/files/session-shared-db.md"
+      ],
+      "expectations": [
+        "Leaves the user's pg-local container running",
+        "Never drops a database or removes a container or volume",
+        "Reports the invoices_scratch database",
+        "Asks whether to drop invoices_scratch",
+        "Doesn't repeat the password in its report",
+        "Does not archive the session"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/simplicity:cleanup",
+      "baseline_prompt": "Let's wrap up this session.",
+      "expected_output": "Stops the mailpit container this session started. Leaves the user's redis-cache container and its volume alone, and runs no prune. With nothing else open, asks whether to archive, without archiving yet.",
+      "files": [
+        "evals/files/session-preexisting-container.md"
+      ],
+      "expectations": [
+        "Stops the mailpit container this session started",
+        "Leaves the user's redis-cache container running",
+        "Never removes a container or volume, and never prunes",
+        "Asks whether to archive the session",
+        "Does not archive before the user confirms"
+      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 ---
 name: cleanup
-description: Runs an end-of-session closing checklist, invoked as `/simplicity:cleanup`. Stops background tasks/servers this session started, checks the working tree(s) for uncommitted, unpushed, or stashed changes and flags them without auto-committing or discarding anything, removes disposable scratch files, notifies other active sessions only when there's a concrete handoff reason, and reports the session as ready before offering to archive it. Use whenever the user says "wrap this session up", "run the cleanup checklist", "prepare this session for archival", or otherwise wants to close out a session responsibly before it goes idle or gets archived. Not for cleaning up or refactoring code.
+description: Runs an end-of-session closing checklist, invoked as `/simplicity:cleanup`. Stops background tasks/servers and the containers this session started, flags the volumes and databases it created instead of deleting them, checks the working tree(s) for uncommitted, unpushed, or stashed changes and flags them without auto-committing or discarding anything, removes disposable scratch files, notifies other active sessions only when there's a concrete handoff reason, and reports the session as ready before offering to archive it. Use whenever the user says "wrap this session up", "run the cleanup checklist", "prepare this session for archival", or otherwise wants to close out a session responsibly before it goes idle or gets archived. Not for cleaning up or refactoring code.
 license: MIT (see plugin root LICENSE)
 compatibility: Built for the Claude Code desktop app, where session-management tools (rename, archive, suggestion chips, other sessions) exist. In the CLI, steps that need those tools are skipped and the closing report says so.
 ---
@@ -36,6 +36,19 @@ Anything this session spawned that would otherwise keep running or waiting after
 
 Don't stop something you're unsure about — ask first if a background task's purpose isn't obvious from the conversation so far.
 
+## 2b. Containers and data stores
+
+Some things this session started keep running, or keep their data, after the command that made them has returned, so they never show up as background tasks: detached containers (`docker run -d`, `docker compose up -d`, the same under `podman`), compose stacks, named volumes and networks, and databases or schemas created inside a server (`createdb`, `CREATE DATABASE`). A database that lives in a file, such as SQLite, is a scratch file and belongs to step 3.
+
+Find them in the conversation, from the commands this session actually ran, then confirm their state with read-only commands: `docker ps -a`, `docker compose -p <project> ps`, `docker volume ls`, `psql -l`. Shell commands work in the CLI too, so this step runs there. If Docker or the database can't be reached, say so and move on.
+
+- **Only what this session created.** A container, volume or database that was already there when the session started, or that the user started, is the user's, even if this session used it. Leave it running and leave its data alone. Never treat everything `docker ps` lists as this session's, and never run a prune (`docker system prune`, `docker volume prune`, `docker container prune`): a prune reaches past this session.
+- **Stop without asking.** Stopping can be undone with a start, so it's a step 2 action: stop the containers and stacks this session started and no longer needs (`docker stop <name>`, `docker compose -p <project> stop`). Leave one running if the work continues somewhere that needs it, such as a handoff in step 4, and say why.
+- **Ask before deleting.** Removing a container (`docker rm`, `docker compose down`), a volume (`docker volume rm`, `down -v`) or a network, or dropping a database (`dropdb`, `DROP DATABASE`), can't be undone. Even when this session created it, its data may be what the user wants to keep: seeded rows, migration results, a fixture someone else is about to read. List each one by name, with what it holds if the conversation says, and ask which to delete as a direct question. Delete only the ones the user names in this step. Until they answer, the question is open, so step 6 doesn't offer to archive: in a cloud session, archiving releases the container, and its containers and volumes go with it.
+- **When unsure who started it**, leave it running and mention it.
+
+A connection string or password in one of these commands is a credential: name it, don't repeat it, the same as step 1.
+
 ## 3. Scratch cleanup
 
 If this session created temporary or scratch files (a scratch workspace, `/tmp`, a scratchpad directory) that aren't meant to outlive the session, remove them. Never touch files inside a real project's working tree, or anything the user might plausibly want to keep. When genuinely unsure whether a file is disposable, leave it and mention it rather than guessing.
@@ -53,7 +66,7 @@ Messages to people (teammates in chat, email, PR comments) are different: never 
 
 ## 6. Report, then offer to archive
 
-Summarize what you found and did in steps 1-5 — plainly, no padding: working-tree state per repo, what you stopped, what you cleaned, who (if anyone) you notified and why, any title change or dismissed chips. Then ask whether the user wants to archive this session now.
+Summarize what you found and did in steps 1-5 — plainly, no padding: working-tree state per repo, what you stopped, the containers, volumes and databases left for the user to decide on, what you cleaned, who (if anyone) you notified and why, any title change or dismissed chips. Then ask whether the user wants to archive this session now.
 
 Only archive after the user explicitly confirms in this step — never speculatively, even though invoking `/simplicity:cleanup` signals intent to wrap up; a session with live background work or an unresolved question from steps 1-5 shouldn't be offered for archival in the first place.
 

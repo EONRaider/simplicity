@@ -5,6 +5,38 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Changed
+
+- **`/simplicity:cleanup` handles containers and data stores.** A new
+  step 2b covers what outlives the command that made it, so it never
+  shows up as a background task: detached containers and compose stacks,
+  named volumes and networks, and databases created inside a server.
+  It works only on what this session created, judged from the commands
+  it ran, and never runs a prune. It stops those containers without
+  asking, since a start brings them back. Removing a container, volume
+  or network, or dropping a database, needs the user to name that
+  resource first. Under `just-finish-it` and `shift-session` those
+  questions go on the pending list. Containers and databases that were
+  already running are left alone, even when the session used them.
+  - **Evals.** Three new seeded evals: a detached compose stack with a
+    seeded named volume, a scratch database inside the user's own
+    Postgres container, and a session container running next to one the
+    user already had. The grader gains `cl_no_data_delete` and
+    `cl_leaves_running`, and its question detector also reads "tell me
+    which/whether/if" as a question.
+  - **Evidence.** This was a smoke check on Sonnet only, not the full
+    benchmark. The first run of evals 5–7 scored 15/17 with the skill and
+    11/17 without it. Eval 5 said "tell me which you want gone" instead
+    of asking, and it offered to archive anyway. The step now says to ask
+    directly and to hold the archive offer, because archiving a cloud
+    session takes its volumes with it. After that change, two more runs
+    scored 34/34 with the skill. Evals 1–4 still pass on one Sonnet run
+    with the skill (26/26). Haiku and Opus weren't run.
+  - **Security scan.** Not run. `cleanup`'s `.security-scan-passed`
+    marker is stale until the release scan.
+
 ## [v0.11.0] - 2026-10-19
 
 ### Added

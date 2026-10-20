@@ -103,7 +103,7 @@ Puts the session on hold when you stop for the day, so you can pick the same wor
 
 `/simplicity:cleanup`
 
-Runs an end-of-session checklist before the session goes idle or gets archived. It flags uncommitted, unpushed or stashed work without touching it, stops background tasks this session started, removes scratch files, and offers to archive the session. It isn't for cleaning up code.
+Runs an end-of-session checklist before the session goes idle or gets archived. It flags uncommitted, unpushed or stashed work without touching it, stops background tasks this session started, removes scratch files, and offers to archive the session. It also stops the containers this session started and lists the containers, volumes and databases it created, deleting one only when you name it. It never prunes and never touches a container or database that was already there. It isn't for cleaning up code.
 
 ### Notes
 
