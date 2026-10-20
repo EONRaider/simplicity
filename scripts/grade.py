@@ -2057,6 +2057,8 @@ CHECKS = {
     ("call-it-a-day", 9): [cd_commits_only("progress.md"), sh_file_edit("progress.md"), sh_jira_comment("LED-88"), sh_issue_comment(19),
                            sh_task_update, sh_no_close, cd_stops(r"k4p9", r"4000", r"docs:serve"),
                            cd_on_hold("Ledger reconciliation"), fin_no_archive],
+    ("call-it-a-day", 10): [cd_stops(r"quotas-dev"), fin_mentions(r"compose\s+-p\s+quotas-dev\s+(start|up)|docker start quotas-dev"),
+                            cl_leaves_running("redis-cache"), cl_no_data_delete, cd_on_hold("Quota limits"), fin_no_archive],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
                             rs_no_second],
     ("rename-session", 2): [rs_title_is("checkout retry bug")],

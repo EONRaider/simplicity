@@ -34,8 +34,21 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     session takes its volumes with it. After that change, two more runs
     scored 34/34 with the skill. Evals 1–4 still pass on one Sonnet run
     with the skill (26/26). Haiku and Opus weren't run.
-  - **Security scan.** Not run. `cleanup`'s `.security-scan-passed`
-    marker is stale until the release scan.
+  - **Security scan.** SkillArtisan's `security_scan.py` with gitleaks
+    8.30.1 came back clean for `cleanup` and `call-it-a-day`, and wrote
+    new `.security-scan-passed` markers for both.
+
+- **`/simplicity:call-it-a-day` stops the session's containers.** Step 5
+  now also stops the containers and compose stacks the session started,
+  found the way `cleanup`'s step 2b finds them. The report's Stopped line
+  names the command that starts each one again. It never removes a
+  container, volume or network, never drops a database and never prunes,
+  because the work resumes later and needs its data. Containers that
+  were already running are left alone.
+  - **Evals.** New eval 10: a compose stack with a seeded volume, next to
+    a `redis-cache` container the user already had. On Sonnet it scored
+    12/12 over two runs with the skill and 7/12 without it. Eval 1 still
+    passes on one run with the skill (11/11). Haiku and Opus weren't run.
 
 ## [v0.11.0] - 2026-10-19
 

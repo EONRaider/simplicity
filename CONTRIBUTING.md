@@ -58,7 +58,7 @@ claude plugin validate .
 
 ## Running the evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 67
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 68
 evals across the ten skills. `cleanup` also ships a 20-query trigger set for its description
 (`skills/cleanup/evals/trigger_eval_set.json`), and the eight skills you can name mid-sentence
 ship a 10-query set each that checks they run when named and stay quiet when paraphrased.
@@ -66,7 +66,7 @@ ship a 10-query set each that checks they run when named and stay quiet when par
 To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p`
 call, so it counts against your Claude plan's usage limits, or bills your API key if one is
 configured. Every eval runs with and without the skill on Haiku, Sonnet and Opus, so
-`--runs 5` (the smoke preset the CHANGELOG uses) is 2,010 runs. `--runs` defaults to 1 (402
+`--runs 5` (the smoke preset the CHANGELOG uses) is 2,040 runs. `--runs` defaults to 1 (408
 runs); `--skills`, `--models`, `--evals` and `--configs` narrow the set.
 
 ```bash

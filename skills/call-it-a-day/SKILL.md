@@ -106,6 +106,8 @@ The state must survive even if this session is later archived or lost. It lives 
 
 Nothing should run overnight on the session's behalf. Stop what this session started, using cleanup's step 2 rules (`${CLAUDE_SKILL_DIR}/../cleanup/SKILL.md`): dev and preview servers, background shell tasks, monitors, and the wakeups, loops and check-ins it armed to drive its own work. Leave anything the user set up to keep running independently, such as a PR watch they asked for, and name it in the report. When a task's purpose isn't clear, leave it running and put it on the pending list rather than asking. Don't run `/simplicity:cleanup` itself, since it offers to archive, and don't delete scratch files.
 
+That includes the containers and compose stacks this session started, found the way cleanup's step 2b finds them: stop them (`docker stop <name>`, `docker compose -p <project> stop`) and name, in the report, the command that starts each one again. Never remove a container, volume or network, never drop a database and never prune: the work resumes later and needs its data. Leave alone any container or database that was already running, even if this session used it.
+
 ## 6. Rename this session
 
 Rename this session "<topic> -> On hold", last, once the state is saved. In the desktop app use the session title tool with `"self"`. In the CLI run `rename-session`'s helper directly, since its title rules don't allow this format:
@@ -124,7 +126,7 @@ Write the report as normal markdown:
 - **Committed and pushed**: one line per branch with its SHA, and the draft PR if `--pr` opened one.
 - **Trackers**: one line per tracker, updated or skipped and why.
 - **Saved**: the memory note's path, or that there was no memory directory, and the hold record.
-- **Stopped**: what step 5 stopped, and what it left running.
+- **Stopped**: what step 5 stopped, with the command that starts each container again, and what it left running.
 - **Still to do**, whenever the pending list isn't empty: a numbered list, one item per line, each with a **Next:** step the user can take now, in the format shift-session's step 6 uses. Say plainly if anything exists only on this machine.
 
 Then write "To resume, keep typing in this session, or paste this prompt into a new one:", followed by the full handoff prompt in a fenced code block. In the CLI, add that `claude --resume <session id>` reopens this session.
