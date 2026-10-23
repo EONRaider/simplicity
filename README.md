@@ -26,7 +26,7 @@ claude --plugin-dir /path/to/simplicity
 | [`/simplicity:just-finish-it [PR numbers \| repo path]`](docs/commands.md#just-finish-it) | Ships the session's work and closes it: pushes, merges the PRs whose CI is green, cleans up and archives the session. |
 | [`/simplicity:shift-session [--pr]`](docs/commands.md#shift-session) | Hands the session's work to a fresh child session before the context window bloats. |
 | [`/simplicity:call-it-a-day [--pr]`](docs/commands.md#call-it-a-day) | Puts the session on hold when you stop for the day, so you can pick the same work up later with nothing lost. |
-| [`/simplicity:cleanup`](docs/commands.md#cleanup) | Runs an end-of-session checklist before the session goes idle or gets archived. |
+| [`/simplicity:cleanup`](docs/commands.md#cleanup) | Runs an end-of-session checklist before the session goes idle or gets archived, including stopping the containers it started and flagging the volumes and databases it created. |
 | [`/simplicity:rename-session [topic]`](docs/commands.md#rename-session) | Renames the session after what it was actually about, so you can find it later in the resume picker. |
 | [`/simplicity:promptfy [prompt]`](docs/commands.md#promptfy) | Rewrites a prompt into a stronger one and hands it back without running it. |
 
