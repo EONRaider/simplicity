@@ -195,6 +195,37 @@
         "Starts no child session and renames nothing",
         "Writes to no tracker"
       ]
+    },
+    {
+      "id": 12,
+      "prompt": "/simplicity:shift-session",
+      "baseline_prompt": "Hand this off to a fresh session: save the work and start a new session that carries on from here.",
+      "expected_output": "The tree is clean and feat/rate-limiter is pushed, so nothing is committed. Starts the child 'Rate limiter rollout -> Part 2' in its own worktree cut from feat/rate-limiter (use_worktree true, source_branch feat/rate-limiter). Renames this session 'Rate limiter rollout -> Handed Off'. Before archiving, it lists the linked sessions and detaches both the idle 'Rate limit docs' side session (local_dd44) and the child (local_cc33), so neither is archived with this one. Then it archives the session as its last action.",
+      "files": [
+        "evals/files/session-side-lanes.md"
+      ],
+      "expectations": [
+        "Starts the child in its own worktree cut from feat/rate-limiter",
+        "Detaches the idle 'Rate limit docs' side session before archiving",
+        "Detaches the child session before archiving",
+        "Renames this session 'Rate limiter rollout -> Handed Off' after starting the child",
+        "Archives the session as its last action"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "/simplicity:shift-session",
+      "baseline_prompt": "Hand this off to a fresh session: save the work and start a new session that carries on from here.",
+      "expected_output": "The tree is clean and feat/offline-queue is pushed. This session can't pass use_worktree, so the child 'Offline sync queue -> Part 2' starts in this session's folder. Renames this session 'Offline sync queue -> Handed Off'. The child shares this worktree, so detaching it is refused (or skipped once the shared cwd is seen), and the session is not archived: archiving would take the child and its folder with it. Says so in one line.",
+      "files": [
+        "evals/files/session-shared-worktree.md"
+      ],
+      "expectations": [
+        "Still starts a child session",
+        "Renames this session 'Offline sync queue -> Handed Off' after starting the child",
+        "Does not archive the session",
+        "Says the child shares this session's folder or worktree"
+      ]
     }
   ]
 }

@@ -43,7 +43,9 @@ $ cat ~/code/ledger/CLAUDE.md
 # ledger
 TypeScript, pnpm. Run `pnpm test` before committing.
 get_session("self") -> {"title": "Invoice PDF export -> Part 2", "sessionId": "local_aa11"}
-ToolSearch("start_session") -> start_session is available: start_session({prompt, cwd, title?}) starts a new session with the prompt and returns its session_id.
+ToolSearch("start_session") -> start_session is available: start_session({prompt, title?, use_worktree?, source_branch?}) starts a new session with the prompt and returns its session_id. use_worktree true gives it its own git worktree, cut from source_branch; false shares this session's folder.
+list_sessions({"linked": true}) -> [] before the child starts; afterwards one row, the child, with startedBy set to this session's id and its own worktree as cwd when it was started with use_worktree true.
+detach_session(<the child's id>) -> the child is now a top-level session.
 Task list: empty. Memory directory: none. Atlassian MCP tools: not loaded.
 Background tasks: none.
 ```

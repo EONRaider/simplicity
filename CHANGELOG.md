@@ -5,6 +5,97 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.13.0] - 2026-10-28
+
+### Fixed
+
+- **Archiving no longer takes live side sessions with it.** In the
+  desktop app, archiving a session also archives its side sessions that
+  are idle or share its worktree, and by default it removes the archived
+  session's worktree. The archive tool refuses only while a side session
+  that shares the worktree is mid-turn. So `shift-session`'s archive
+  could take the idle lanes this session supervised, and a child that
+  shared its folder could be archived with its folder deleted.
+  `just-finish-it`'s archive and `cleanup`'s closing offer had the same
+  exposure. All three now run an archive guard first: list this
+  session's linked sessions, detach every side session this session
+  started (the new child included) so it lives on at top level, and
+  don't archive if a detach is refused or no detach tool exists. A
+  refused detach means a side session shares this session's worktree;
+  the skill says so in one line, and `shift-session` leaves the session
+  titled "<topic> -> Handed Off". `cleanup` checks before it offers to
+  archive and detaches only after the user agrees.
+  - **`shift-session` starts the child in its own worktree.** Step 4 now
+    passes `use_worktree: true` and `source_branch` set to the working
+    branch, so the child can be detached. The handoff tells a child in
+    its own worktree to push with `git push origin HEAD:<branch>`, since
+    git refuses to check out a branch another worktree holds. The line
+    that asks a chip-started child to archive the parent now has the
+    child decline when it shares the parent's folder or the parent has
+    other live side sessions.
+  - **Measured start paths.** In desktop app 2.9939.4, from a session in
+    its own worktree, four probe children were started and compared
+    with `list_sessions({"linked": true})` and `git worktree list`:
+    `start_session` with `use_worktree` left out and with
+    `use_worktree: true` each got a worktree of its own on a new branch
+    (the left-out one in a folder the app reused from an earlier
+    session); with
+    `use_worktree: false` the child's `cwd` was the parent's worktree;
+    `context: "fork"` got a new worktree. `detach_session` accepted the
+    three in their own worktrees and refused the shared one with "A
+    session that shares its parent's checkout can't be moved to top
+    level." In the child's own worktree, `git checkout` of the parent's
+    branch failed with "already used by worktree". Not measured, taken
+    from the tool descriptions: a parent in a plain folder that never
+    had a worktree shares its folder with a child started without
+    `use_worktree`, a fork from a plain checkout shares the folder, and
+    a session that moved into its worktree with EnterWorktree can't pass
+    `use_worktree`, and `source_branch` sets the commit the child's
+    worktree is cut from (every probe branch sat at the same commit as
+    `main`, so this wasn't distinguishable). `hand_off_to_session` wasn't probed, since it would
+    have moved the task under test.
+  - **`call-it-a-day` doesn't archive.** It never calls the archive tool
+    (its SKILL.md says so in the overview, step 6 and the closing line),
+    and its resume prompt leaves the old session open as the user's
+    call, so it needs no guard.
+  - **Evals.** Four new seeded evals: `shift-session` 12 (an idle
+    supervised side session plus the child, both detached before the
+    archive) and 13 (a child that has to share the folder, so the
+    detach is refused and the session isn't archived), `just-finish-it`
+    9 (an idle side session with an unreviewed draft, detached before
+    the archive) and `cleanup` 8 (a side session sharing the folder, so
+    no archive offer and no detach). The grader gains `ar_detaches`,
+    `ar_no_detach` and `ar_own_worktree`. The `shift-session` seeds
+    with an automatic start (evals 1, 5 and 10) now describe `use_worktree`, `list_sessions` and
+    `detach_session`.
+  - **Evidence.** This was a smoke check on Sonnet with the skill only, not the full
+    benchmark. Before the fix, the new evals ran once each. The first
+    seeds named the detach tool and its result in the live state, and the
+    unfixed skills passed on that hint alone (13/13 on `shift-session` 12
+    and 13 and `cleanup` 8), so the success seeds were rewritten to list
+    only the linked sessions. Rerun on the unfixed skills,
+    `shift-session` 12 scored 3/5 and `just-finish-it` 9 scored 3/4: both
+    archived without detaching anything. `shift-session` 13 (4/4) and
+    `cleanup` 8 (4/4) still pass unfixed, because the refused detach
+    they need is in the seed, so they guard against regressions but
+    don't show the fix. After the fix, two runs each: `just-finish-it` 9
+    8/8, `cleanup` 8 8/8, `shift-session` 13 8/8, and `shift-session` 12
+    8/10. The miss archived without running the guard, which then sat
+    below the finish options. It now comes before them, and three more
+    runs of `shift-session` 1, 12 and 13 scored 48/48. Regressions on the
+    evals whose seeds changed or that archive, two runs each:
+    `shift-session` 1, 5 and 10 and `just-finish-it` 1 all passed
+    (56/56). `cleanup` 3 scored 11/12: one
+    run didn't message the "Orders API migration" session, a step this
+    change doesn't touch. `cleanup`'s check then moved ahead of its
+    archive question, and one more run each scored 34/34: `cleanup` 3
+    and 8, `shift-session` 2 (the chip's archive line) and
+    `just-finish-it` 5 and 7 (archives over MCP). Haiku, Opus and the without-skill baselines
+    weren't run.
+  - **Security scan.** SkillArtisan's `security_scan.py` with gitleaks
+    8.21.2 came back clean for `shift-session`, `just-finish-it` and
+    `cleanup`, and wrote new `.security-scan-passed` markers for all three.
+
 ## [v0.12.0] - 2026-10-20
 
 ### Changed
@@ -1419,7 +1510,8 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.13.0...HEAD
+[v0.13.0]: https://github.com/EONRaider/simplicity/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/EONRaider/simplicity/compare/v0.11.0...v0.12.0
 [v0.11.0]: https://github.com/EONRaider/simplicity/compare/v0.10.0...v0.11.0
 [v0.10.0]: https://github.com/EONRaider/simplicity/compare/v0.9.0...v0.10.0
