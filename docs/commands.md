@@ -61,6 +61,7 @@ Ships the session's work and closes it: pushes, merges the PRs whose CI is green
 - On the MCP path it can't always see a merge queue. If the default branch is protected and the server's `governance` toolset doesn't show one, it takes the answer your CLAUDE.md or CONTRIBUTING states, and asks you only when neither says, once per run. If GitHub then refuses the merge because of a queue, the PR goes on "Still to do" for you to enqueue.
 - The MCP server has no branch-delete tool, so a merged branch the repo doesn't auto-delete goes on the "Still to do" list.
 - Archiving uses the desktop app's session tools. In the CLI it stops at "ready to close".
+- Archiving a session in the desktop app also archives its side sessions that are idle or share its worktree, and removes its worktree. So before archiving, it lists this session's linked sessions and detaches each side session it started so it lives on at top level. If a detach is refused, which happens when a side session shares this session's worktree, it doesn't archive and says why.
 
 ## shift-session
 
@@ -70,7 +71,8 @@ Hands the session's work to a fresh child session before the context window bloa
 
 ### Notes
 
-- `shift-session` starts the child in the most automatic way the UI allows. If the desktop app offers a tool that starts a session with a prompt (`start_session` or `hand_off_to_session`), it uses that, and archives this session at the end. The app build checked for this release (desktop 2.9939.4, Claude Code 2.1.284) has neither, so there it creates a suggestion chip you start with one click. Archiving a session removes its unclicked chip, so the parent stays open, and the child archives it once it runs; if the parent is still finishing its turn, the child waits and retries, up to three times, before leaving it to you.
+- `shift-session` starts the child in the most automatic way the UI allows. If the desktop app offers a tool that starts a session with a prompt (`start_session` or `hand_off_to_session`), it uses that, starting the child in its own worktree, and archives this session at the end. Without such a tool it creates a suggestion chip you start with one click. Archiving a session removes its unclicked chip, so the parent stays open, and the child archives it once it runs; if the parent is still finishing its turn, the child waits and retries, up to three times, before leaving it to you.
+- Archiving a session in the desktop app also archives its side sessions that are idle or share its worktree, and removes its worktree. So before archiving, it lists this session's linked sessions and detaches each side session it started so it lives on at top level. If a detach is refused, which happens when a side session shares this session's worktree, it doesn't archive, leaves this session titled `<topic> -> Handed Off`, and says why. A child that has to share the folder, as when this session moved into its worktree with EnterWorktree, is the usual cause.
 - In auto permission mode, the auto-mode classifier may refuse the push even though you asked for the shift. The push then goes on the "Still to do" list, and the shift continues; approve the push in the conversation, or push the branch yourself.
 - In the CLI and other UIs without session tools, it prints the handoff prompt and suggests `claude "<prompt>"`, and stops at "ready to close".
 - `shift-session` pushes, like `just-finish-it`, but it can't be typed-only: its hook has Claude load it. So you can also name it mid-sentence, and Claude treats that as your go-ahead. When the hook starts it, it asks you once before committing anything. Named mid-sentence, it asks before it loads, because it declares `allowed-tools` for its helper scripts.
@@ -108,6 +110,7 @@ Runs an end-of-session checklist before the session goes idle or gets archived. 
 ### Notes
 
 - `cleanup`'s session steps (stopping background tasks, messaging other sessions, retitling, archiving) use the desktop app's session tools. In the CLI it skips them, says so, and ends at "ready to close".
+- Before it offers to archive, it checks this session's side sessions. One that shares this session's folder would be archived along with it, and its folder removed, so it doesn't offer and says why. Otherwise, once you agree, it detaches each side session so it lives on, then archives.
 
 ## rename-session
 

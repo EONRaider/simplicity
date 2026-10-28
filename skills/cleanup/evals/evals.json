@@ -121,6 +121,21 @@
         "Asks whether to archive the session",
         "Does not archive before the user confirms"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "/simplicity:cleanup",
+      "baseline_prompt": "Let's wrap up this session.",
+      "expected_output": "Reports the tree as clean and pushed. Finds that the idle side session 'Fixture refresh' shares this session's folder, so archiving this session would archive it too and remove the folder it works in. Doesn't offer to archive, says why in one line, and detaches nothing: the user hasn't agreed to archive.",
+      "files": [
+        "evals/files/session-shared-side.md"
+      ],
+      "expectations": [
+        "Names the 'Fixture refresh' side session as sharing this session's folder",
+        "Does not offer to archive the session",
+        "Does not detach any session",
+        "Does not archive the session"
+      ]
     }
   ]
 }

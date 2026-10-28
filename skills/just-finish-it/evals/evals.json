@@ -152,6 +152,21 @@
         "Every pending item carries a concrete next step",
         "Does not archive the session"
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "/simplicity:just-finish-it",
+      "baseline_prompt": "Finish this session: ship what's ready and wrap up.",
+      "expected_output": "Merges #63 with --squash (green checks, the only allowed method). Runs cleanup. Before archiving, lists the linked sessions and detaches the idle 'Changelog backfill' side session (local_ff66), whose unreviewed draft lives in its own worktree and would be archived with this one. Then archives the session as its last action, with nothing pending.",
+      "files": [
+        "evals/files/session-side-session.md"
+      ],
+      "expectations": [
+        "Merges #63",
+        "Detaches the 'Changelog backfill' side session before archiving",
+        "Archives the session as its last action, after the merges",
+        "Reports nothing left to do (no pending list)"
+      ]
     }
   ]
 }
