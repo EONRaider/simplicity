@@ -37,7 +37,9 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     its own worktree, four probe children were started and compared
     with `list_sessions({"linked": true})` and `git worktree list`:
     `start_session` with `use_worktree` left out and with
-    `use_worktree: true` each got a new worktree; with
+    `use_worktree: true` each got a worktree of its own on a new branch
+    (the left-out one in a folder the app reused from an earlier
+    session); with
     `use_worktree: false` the child's `cwd` was the parent's worktree;
     `context: "fork"` got a new worktree. `detach_session` accepted the
     three in their own worktrees and refused the shared one with "A
@@ -48,7 +50,9 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     had a worktree shares its folder with a child started without
     `use_worktree`, a fork from a plain checkout shares the folder, and
     a session that moved into its worktree with EnterWorktree can't pass
-    `use_worktree`. `hand_off_to_session` wasn't probed, since it would
+    `use_worktree`, and `source_branch` sets the commit the child's
+    worktree is cut from (every probe branch sat at the same commit as
+    `main`, so this wasn't distinguishable). `hand_off_to_session` wasn't probed, since it would
     have moved the task under test.
   - **`call-it-a-day` doesn't archive.** It never calls the archive tool
     (its SKILL.md says so in the overview, step 6 and the closing line),
@@ -61,8 +65,8 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     9 (an idle side session with an unreviewed draft, detached before
     the archive) and `cleanup` 8 (a side session sharing the folder, so
     no archive offer and no detach). The grader gains `ar_detaches`,
-    `ar_no_detach` and `ar_own_worktree`. The three `shift-session`
-    seeds that archive now describe `use_worktree`, `list_sessions` and
+    `ar_no_detach` and `ar_own_worktree`. The `shift-session` seeds
+    with an automatic start (evals 1, 5 and 10) now describe `use_worktree`, `list_sessions` and
     `detach_session`.
   - **Evidence.** This was a smoke check on Sonnet with the skill only, not the full
     benchmark. Before the fix, the new evals ran once each. The first
@@ -79,10 +83,14 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     8/10. The miss archived without running the guard, which then sat
     below the finish options. It now comes before them, and three more
     runs of `shift-session` 1, 12 and 13 scored 48/48. Regressions on the
-    archiving evals, two runs each: `shift-session` 1, 5 and 10 and
-    `just-finish-it` 1 all passed (54/54). `cleanup` 3 scored 11/12: one
+    evals whose seeds changed or that archive, two runs each:
+    `shift-session` 1, 5 and 10 and `just-finish-it` 1 all passed
+    (56/56). `cleanup` 3 scored 11/12: one
     run didn't message the "Orders API migration" session, a step this
-    change doesn't touch. Haiku, Opus and the without-skill baselines
+    change doesn't touch. `cleanup`'s check then moved ahead of its
+    archive question, and one more run each scored 34/34: `cleanup` 3
+    and 8, `shift-session` 2 (the chip's archive line) and
+    `just-finish-it` 5 and 7 (archives over MCP). Haiku, Opus and the without-skill baselines
     weren't run.
   - **Security scan.** SkillArtisan's `security_scan.py` with gitleaks
     8.21.2 came back clean for `shift-session`, `just-finish-it` and

@@ -66,9 +66,11 @@ Messages to people (teammates in chat, email, PR comments) are different: never 
 
 ## 6. Report, then offer to archive
 
-Summarize what you found and did in steps 1-5 — plainly, no padding: working-tree state per repo, what you stopped, the containers, volumes and databases left for the user to decide on, what you cleaned, who (if anyone) you notified and why, any title change or dismissed chips. Then ask whether the user wants to archive this session now.
+Summarize what you found and did in steps 1-5 — plainly, no padding: working-tree state per repo, what you stopped, the containers, volumes and databases left for the user to decide on, what you cleaned, who (if anyone) you notified and why, any title change or dismissed chips.
 
-**Side sessions first.** In the desktop app, archiving a session also archives its side sessions that are idle or share its worktree, and by default it removes the archived session's worktree. Before offering, list this session's linked sessions (the session list tool with `{"linked": true}`); its side sessions are the rows whose `startedBy` is this session's id and that aren't archived. If one's `cwd` is this session's folder, it shares the worktree and can't be detached: don't offer to archive, and say why in one line, naming it. Otherwise, once the user agrees, detach each side session with the detach tool so it lives on at top level, then archive. If a detach is refused, or there's no detach tool, don't archive: say why in one line. Detach nothing before the user agrees.
+**Side sessions first.** In the desktop app, archiving a session also archives its side sessions that are idle or share its worktree, and by default it removes the archived session's worktree. Before you offer to archive, list this session's linked sessions (the session list tool with `{"linked": true}`); its side sessions are the rows whose `startedBy` is this session's id and that aren't archived. If one's `cwd` is this session's folder, it shares the worktree and can't be detached: don't offer to archive, and say why in one line, naming it. Otherwise, once the user agrees, detach each side session with the detach tool so it lives on at top level, then archive. If a detach is refused, or there's no detach tool, don't archive: say why in one line. Detach nothing before the user agrees.
+
+If nothing above stops it, ask whether the user wants to archive this session now.
 
 Only archive after the user explicitly confirms in this step — never speculatively, even though invoking `/simplicity:cleanup` signals intent to wrap up; a session with live background work or an unresolved question from steps 1-5 shouldn't be offered for archival in the first place.
 
