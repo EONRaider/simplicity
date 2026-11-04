@@ -1847,7 +1847,8 @@ def cd_stops(*pats):
 TASK_TOOL = re.compile(r"task_?create|todo_?write|task_?update", re.I)
 TASK_CREATE = re.compile(r"task_?create|todo_?write", re.I)
 MESSAGE_TOOL = re.compile(r"(send|post|notify)\w*(message|session)|message\w*session", re.I)
-WAIT = re.compile(r"\bsleep\b|monitor|\bwait\b|task_?get|list_sessions|list_agents|list_events|read_?notifications", re.I)
+# A wait blocks on time or an event. A read such as TaskGet or list_sessions is an inventory or a re-check, not a wait.
+WAIT = re.compile(r"\bsleep\b|monitor|\bwait\b|read_?notifications", re.I)
 HALT = re.compile(r"interrupt|\bkill\b|task_?stop|\babort|terminate|archive|cancel", re.I)
 SELF_ITEM = re.compile(r"this session|own hold|on hold|orchestrator|supervisor|myself|\blast\b", re.I)
 LIST_LINE = re.compile(r"\s*(?:\d+[.)]|[-*+])\s+")

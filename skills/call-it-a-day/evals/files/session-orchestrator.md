@@ -24,6 +24,8 @@ $ git -C ~/code/catalog status --short --branch
 ?? src/search/parser.ts
 ?? src/search/parser.test.ts
 ?? src/search/indexer.ts
+$ grep -nEi 'key|token|secret|password' ~/code/catalog/src/search/*.ts
+(no matches: the untracked files hold no credentials, and the same holds once indexer.ts is finished)
 $ git -C ~/code/catalog stash list
 $ git -C ~/code/catalog worktree list
 ~/code/catalog                                    5b1c2d3 [feat/search-rebuild]

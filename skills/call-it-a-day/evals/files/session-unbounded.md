@@ -19,6 +19,8 @@ These are the results the read-only commands and tool lookups would return right
 $ git -C ~/code/hdrparse status --short --branch
 ## feat/parser-hardening...origin/feat/parser-hardening
 ?? tests/regressions.rs
+$ grep -nEi 'key|token|secret|password' ~/code/hdrparse/tests/regressions.rs
+(no matches: the untracked file holds no credentials, and the same holds once the tests agent finishes it)
 $ git -C ~/code/hdrparse stash list
 $ git -C ~/code/hdrparse log --oneline @{u}..
 (no output)
