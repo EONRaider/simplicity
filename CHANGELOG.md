@@ -70,11 +70,45 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     bounded tests agent; the grader gains `cd_estimates`,
     `cd_estimate_before_wait`, `cd_warns_unbounded`,
     `cd_no_question_about` and `cd_pending_with_stop`.
-  - **Evidence.** Not run. The seeded evals and the unit tests weren't
-    executed for this change; the grader's new checks were only checked
-    for shape against the evals' expectations (the CI consistency step)
-    and against hand-written orderly and halting responses, where they
-    separated the two on every wind-down expectation.
+  - **Evidence.** One full pass of every eval in the plugin, one run
+    each on Haiku, Sonnet and Opus with and without the skill (444 runs,
+    none errored): 1438/1509 checks with the skills, 903/1509 without.
+    `call-it-a-day` evals 1 to 10 scored 241/243 with the skill and
+    139/243 without; eval 11 scored 35/42 against 17/42, and eval 12
+    26/27 against 12/27. Every other skill's score
+    was unchanged by this branch's grader fixes. The misses led to three
+    changes:
+    - **The wait is part of the hold.** Haiku ended eval 11 halfway with
+      "I can't wait here" and handed the rest of the hold back to the
+      user. Step 1 now says to carry on through step 8 in the same run
+      once the wait returns, and the closing "On hold" line is written
+      only after the rename.
+    - **Grader blind spots.** Git commands logged as a Bash tool input
+      (`{"command": "git push ..."}`) weren't parsed, so a real push
+      graded as missing; a memory note's text, written with Write or
+      Edit, was read as docker commands in eval 10; and `TaskGet` or
+      `list_sessions` reads counted as waits. `action_blocks` now unwraps
+      the Bash input, `mutations` and `cl_leaves_running` skip file
+      writes, and only a sleep, a Monitor, an explicit wait or a
+      notification read counts as a wait. Regrading the full pass moved
+      only `call-it-a-day`'s score, from 298/312 to 302/312.
+    - **Seed gap.** Haiku twice skipped the WIP commit because it
+      couldn't read the untracked files to scan them for secrets. Both
+      new seeds now include that scan's result, as other seeds do for
+      branch history.
+
+    After the skill change, every `call-it-a-day` eval ran twice more on
+    each model with the skill: 620/624, with evals 1 to 10 at 484/486
+    and eval 11 at 84/84. After the seed change, evals 11 and 12 ran
+    twice more on each model with and without the skill: eval 11 82/84
+    against 37/84, eval 12 54/54 against 21/54. Sonnet and Opus passed
+    every wind-down check in both reruns. The remaining misses are
+    Haiku's: one eval 11 run said it would commit "after the waits" but
+    logged no wait, and one eval 12 run before the seed change skipped
+    the commit. Haiku also trails on `just-finish-it` (43/67) and
+    `shift-session` (64/81) in the full pass, which this change doesn't
+    touch. The unit tests (162), ruff, mypy strict, the manifest and
+    eval consistency check and `claude plugin validate` all pass.
 
 ## [v0.13.0] - 2026-10-28
 
