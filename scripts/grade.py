@@ -1823,6 +1823,139 @@ def cd_stops(*pats):
     return check
 
 
+# A wind-down (call-it-a-day step 1): the shutdown list, the dispatchers, the waits and the messages.
+TASK_TOOL = re.compile(r"task_?create|todo_?write|task_?update", re.I)
+TASK_CREATE = re.compile(r"task_?create|todo_?write", re.I)
+MESSAGE_TOOL = re.compile(r"(send|post|notify)\w*(message|session)|message\w*session", re.I)
+WAIT = re.compile(r"\bsleep\b|monitor|\bwait\b|task_?get|list_sessions|list_agents|list_events|read_?notifications", re.I)
+HALT = re.compile(r"interrupt|\bkill\b|task_?stop|\babort|terminate|archive|cancel", re.I)
+SELF_ITEM = re.compile(r"this session|own hold|on hold|orchestrator|supervisor|myself|\blast\b", re.I)
+LIST_LINE = re.compile(r"\s*(?:\d+[.)]|[-*+])\s+")
+
+
+def is_message(d):
+    return bool(MESSAGE_TOOL.search(d["name"]))
+
+
+def cd_plain(d):
+    """An action that isn't a skill load, a file write, a task-list edit or a message: the ones that act on something."""
+    return not ("skill" in d["name"].lower() or WRITE_TOOL.match(d["name"]) or TASK_TOOL.search(d["name"]) or is_message(d))
+
+
+def cd_list_blocks(r):
+    """Shutdown-list candidates, each a list of item texts: the items of every task-create action, in order, as one block,
+    plus each run of consecutive list lines in the report (an indented or blank line continues a run)."""
+    created, blocks = [], []
+    for d in action_blocks(r):
+        if not TASK_CREATE.search(d["name"]):
+            continue
+        try:
+            data = json.loads(d["args"])
+        except json.JSONDecodeError:
+            data = None
+        todos = (data.get("todos") or data.get("tasks")) if isinstance(data, dict) else None
+        if isinstance(todos, list):
+            created.extend(t if isinstance(t, str) else json.dumps(t) for t in todos)
+        else:
+            created.append(d["args"])
+    if created:
+        blocks.append(created)
+    run = []
+    for line in report_text(r).splitlines():
+        if LIST_LINE.match(line):
+            run.append(line)
+        elif run and line.strip() and not line.startswith((" ", "\t")):
+            blocks.append(run)
+            run = []
+    if run:
+        blocks.append(run)
+    return blocks
+
+
+def cd_shutdown_lists(r, pats):
+    return [b for b in cd_list_blocks(r) if all(re.search(p, "\n".join(b), re.I) for p in pats)]
+
+
+def cd_shutdown_list(*pats):
+    """A task list (the task tools, or a list in the report) names every pattern: each supervised agent and the hold."""
+    def check(r, meta):
+        hits = cd_shutdown_lists(r, pats)
+        return bool(hits), f"{len(hits)} list(s) name all of {list(pats)}" if hits else f"no list names all of {list(pats)}"
+    return check
+
+
+def cd_self_last(*pats):
+    """A list naming every supervised pattern ends with this session's own hold."""
+    def check(r, meta):
+        hits = cd_shutdown_lists(r, pats)
+        ok = [b for b in hits if SELF_ITEM.search(b[-1])]
+        return bool(ok), f"last item: {hits[0][-1].strip()[:80]!r}" if hits else "no list names every supervised agent"
+    return check
+
+
+def cd_stops_first(*pats):
+    """A stop of a dispatcher matching the patterns precedes the first wait and the first message."""
+    def check(r, meta):
+        acts = action_blocks(r)
+        stops = [i for i, d in enumerate(acts) if cd_plain(d) and re.search(r"stop|cancel|delete|disable|enabled\W+false", raw(d), re.I)
+                 and any(re.search(p, raw(d), re.I) for p in pats)]
+        later = [i for i, d in enumerate(acts) if is_message(d) or (cd_plain(d) and WAIT.search(raw(d)))]
+        ok = bool(stops) and (not later or stops[0] < min(later))
+        return ok, f"dispatcher stopped at {stops[:1]}, first wait or message at {later[:1]}"
+    return check
+
+
+def cd_no_halt(*ids):
+    """No interrupt, kill, stop, cancel or archive action names a supervised agent or session that is mid-task. A message
+    that tells it to finish and stop isn't a halt."""
+    def check(r, meta):
+        hit = [raw(d)[:70] for d in action_blocks(r) if cd_plain(d) and HALT.search(raw(d))
+               and any(re.search(i, raw(d), re.I) for i in ids)]
+        return not hit, f"halted: {hit[0]!r}" if hit else "nothing halted mid-task"
+    return check
+
+
+def cd_wind_down_message(target):
+    """One message to the target tells it to finish its current task and commit or push its work, and isn't sent as an
+    interrupt (priority now)."""
+    def check(r, meta):
+        ms = [d for d in action_blocks(r) if is_message(d) and re.search(target, raw(d), re.I)]
+        good = [d for d in ms if re.search(r"finish|complete|wrap|wind|current task", d["args"], re.I)
+                and re.search(r"commit|push|persist|save", d["args"], re.I)
+                and not re.search(r"priority\W+now", d["args"], re.I)]
+        return bool(good), f"{len(ms)} message(s) to the target, {len(good)} asking it to finish and persist"
+    return check
+
+
+def cd_wait_idx(r):
+    return [i for i, d in enumerate(action_blocks(r)) if cd_plain(d) and WAIT.search(raw(d))]
+
+
+def cd_waits(r, meta):
+    """Waits for in-flight work (a sleep, a Monitor or a re-check) before the on-hold rename."""
+    holds = [i for i, t, _ in cd_renames(r) if HOLD_TITLE.search(t)]
+    waits = cd_wait_idx(r)
+    ok = bool(waits) and (not holds or waits[0] < holds[-1])
+    return ok, f"waits at {waits[:3]}, on-hold rename at {holds}"
+
+
+def cd_commit_after_wait(r, meta):
+    """The first commit comes after the first wait, so a finished agent's files are complete when they're committed."""
+    commits = [i for i, d in enumerate(action_blocks(r)) if any(re.search(GIT + r"commit\b", s) for s in segments(raw(d).lower()))]
+    waits = cd_wait_idx(r)
+    ok = bool(commits) and bool(waits) and waits[0] < commits[0]
+    return ok, f"first wait at {waits[:1]}, first commit at {commits[:1]}"
+
+
+def cd_supervisor_last(r, meta):
+    """The on-hold rename comes after every stop, message and wait: the supervisor stops last."""
+    holds = [i for i, t, _ in cd_renames(r) if HOLD_TITLE.search(t)]
+    before = [i for i, d in enumerate(action_blocks(r)) if is_message(d)
+              or (cd_plain(d) and (WAIT.search(raw(d)) or re.search(r"\bstop\b|\bkill\b|cancel|disable|enabled\W+false", raw(d), re.I)))]
+    ok = bool(holds) and bool(before) and holds[-1] > max(before)
+    return ok, f"on-hold rename at {holds}, stops, messages and waits at {sorted(before)}"
+
+
 # ---------- just-move checks ----------
 SCHEDULE = re.compile(r"send_?later|create_?trigger", re.I)
 SUBSCRIBE = re.compile(r"subscribe_?pr_?activity", re.I)
@@ -2097,6 +2230,12 @@ CHECKS = {
                            cd_on_hold("Ledger reconciliation"), fin_no_archive],
     ("call-it-a-day", 10): [cd_stops(r"quotas-dev"), fin_mentions(r"compose\s+-p\s+quotas-dev\s+(start|up)|docker start quotas-dev"),
                             cl_leaves_running("redis-cache"), cl_no_data_delete, cd_on_hold("Quota limits"), fin_no_archive],
+    ("call-it-a-day", 11): [cd_shutdown_list(r"indexer|ag_i2", r"query layer docs|local_dd44", r"this session|on hold|orchestrator|supervisor|search index rebuild"),
+                            cd_self_last(r"indexer|ag_i2", r"query layer docs|local_dd44"), cd_stops_first(r"loop|wakeup|schedule"),
+                            cd_no_halt(r"ag_i2|indexer", r"local_dd44|query layer docs"), cd_wind_down_message(r"local_dd44|query layer docs"),
+                            cd_waits, cd_commit_after_wait, lambda r, m: fin_push_branch(r, "feat/search-rebuild"),
+                            cd_on_hold("Search index rebuild"), cd_supervisor_last, fin_no_archive,
+                            cd_handoff_block(r"claude/query-docs-9e2b")],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
                             rs_no_second],
     ("rename-session", 2): [rs_title_is("checkout retry bug")],

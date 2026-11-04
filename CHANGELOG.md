@@ -5,6 +5,53 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Changed
+
+- **`/simplicity:call-it-a-day` winds down what the session supervises,
+  and stops last.** A session that orchestrates other agents or sessions
+  used to go on hold around them: step 5 stopped background tasks, but
+  nothing said what to do with a sub-agent mid-task, a side session
+  mid-turn or the loop feeding them work. A new step 1 runs before the
+  commit, since what those agents produce belongs in the WIP commit and
+  the handoff:
+  - **Inventory and a shutdown list.** It finds every in-process
+    subagent and workflow, every background task doing work, every side,
+    child and teammate session, and the loops, wakeups, scheduled tasks
+    and monitors armed to dispatch work to them. Then it writes a task
+    list that defines the shutdown (the task tools when the host has
+    them, the report otherwise): one item per supervised agent or
+    session, in stop order, with the orchestrator's own hold as the
+    last item.
+  - **Dispatchers first, then let the work finish.** It stops the
+    dispatchers so nothing new starts, starts no agent and sends no new
+    work, and never interrupts, kills, cancels or archives anything
+    mid-task: it waits for a subagent's result, waits for a background
+    task to end, and sends a mid-turn session one message (never at
+    `now` priority) telling it to finish its current task, wind down
+    what it supervises the same way, commit and push its work on its
+    own branch under the usual rules, reply with its state and stop.
+    It waits without blocking and re-checks; a stuck agent or a silent
+    session is left running and goes on the pending list.
+  - **Collect, then stop last.** Finished agents' files go into the WIP
+    commit, supervised sessions' branches and SHAs into the handoff's
+    Repository state, and the shutdown list with each item's end state
+    into its Context. Supervised sessions are left open and idle, never
+    archived. Only then does the hold go on, and the rename is the
+    orchestrator's own, last, stop. The report gains a **Wound down**
+    section. The old steps 1 to 7 are now 2 to 8.
+  - **Evals.** New eval 11: an orchestrator with a running indexer
+    agent, a mid-turn side session on its own branch and a dispatch
+    loop firing in four minutes. Its live state says what a wait returns
+    and what an interrupt would leave half-written. The grader gains
+    `cd_shutdown_list`, `cd_self_last`, `cd_stops_first`, `cd_no_halt`,
+    `cd_wind_down_message`, `cd_waits`, `cd_commit_after_wait` and
+    `cd_supervisor_last`.
+  - **Evidence.** Not run. The seeded evals and the unit tests weren't
+    executed for this change; the grader's new checks were only checked
+    for shape against the eval's expectations (the CI consistency step).
+
 ## [v0.13.0] - 2026-10-28
 
 ### Fixed

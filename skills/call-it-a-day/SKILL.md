@@ -1,25 +1,27 @@
 ---
 name: call-it-a-day
-description: Puts the current session on hold when the user stops work for the day, so the same work can be picked up at a later date with nothing lost. Commits any uncommitted work as a WIP commit and pushes it (never to the default branch, never forced, holding back any branch with a secret), updates whichever trackers the project has, saves a handoff note to the project's memory directory, records this session's title and renames it "<topic> -> On hold", and prints a self-contained handoff prompt. It leaves the session open, starts no new session, merges nothing and never marks the work finished. When the work resumes, in this session or in a new one started from the prompt, the session gets its pre-hold title back. Opens a draft PR only with --pr. Invoked by the user as /simplicity:call-it-a-day [--pr]. The everyday phrase "let's call it a day", written without hyphens, is not a request for this skill. Use when the user names /simplicity:call-it-a-day or asks for call-it-a-day by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
+description: Puts the current session on hold when the user stops work for the day, so the same work can be picked up at a later date with nothing lost. When the session supervises agents or sessions, it first writes a shutdown task list, stops the dispatchers, lets every in-flight task finish, has each supervised session persist its work, and stops last. Commits any uncommitted work as a WIP commit and pushes it (never to the default branch, never forced, holding back any branch with a secret), updates whichever trackers the project has, saves a handoff note to the project's memory directory, records this session's title and renames it "<topic> -> On hold", and prints a self-contained handoff prompt. It leaves the session open, starts no new session, merges nothing and never marks the work finished. When the work resumes, in this session or in a new one started from the prompt, the session gets its pre-hold title back. Opens a draft PR only with --pr. Invoked by the user as /simplicity:call-it-a-day [--pr]. The everyday phrase "let's call it a day", written without hyphens, is not a request for this skill. Use when the user names /simplicity:call-it-a-day or asks for call-it-a-day by name, including mid-sentence, where the command isn't expanded and reaches the model as text; never on a paraphrase of what it does.
 argument-hint: "[--pr]"
 allowed-tools: Bash(python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" *), Bash(python3 "${CLAUDE_SKILL_DIR}/../rename-session/scripts/rename-session.py" *)
 license: MIT (see plugin root LICENSE)
-compatibility: Claude Code. Needs git, plus an authenticated GitHub CLI (gh) or the GitHub MCP server's tools to push and open PRs. Reads shift-session's SKILL.md from the same plugin. Renaming uses the desktop app's session title tool, or rename-session's helper in the CLI. The hold record and the resume hook need Python 3.
+compatibility: Claude Code. Needs git, plus an authenticated GitHub CLI (gh) or the GitHub MCP server's tools to push and open PRs. Reads shift-session's SKILL.md from the same plugin. Renaming uses the desktop app's session title tool, or rename-session's helper in the CLI. Winding down supervised agents uses whichever task, session-list and message tools the host exposes. The hold record and the resume hook need Python 3.
 ---
 
 # call-it-a-day
 
-The user is stopping for the day. Put this session on hold: persist everything, so the same work can be picked up at a later date, in this session or in a new one, with nothing lost. One hold runs steps 0 to 7 in order.
+The user is stopping for the day. Put this session on hold: persist everything, so the same work can be picked up at a later date, in this session or in a new one, with nothing lost. One hold runs steps 0 to 8 in order.
 
-Asking for the command by name, typed or mid-sentence, is the user's go-ahead for the whole hold: the WIP commit, the push, the tracker updates, the memory note and the rename. Don't ask for confirmation, and don't stop to ask anything later either.
+Asking for the command by name, typed or mid-sentence, is the user's go-ahead for the whole hold: the wind-down of what this session supervises, the WIP commit, the push, the tracker updates, the memory note and the rename. Don't ask for confirmation, and don't stop to ask anything later either.
+
+When this session is an orchestrator, one that started, drives or waits on other agents or sessions, the hold is orderly: it writes down how each of them stops, lets every task that is already running finish, collects what they produced, and stops last. Nothing is halted mid-task and nothing new is started.
 
 How this differs from its neighbours:
 
 - `/simplicity:shift-session` hands the work to a new child session right away. This skill starts no session: the work pauses here and resumes later.
 - `/simplicity:cleanup` only reports state. This skill leaves the state persisted.
-- `/simplicity:just-finish-it` ships the work and closes it. This skill never merges a PR, never marks a PR ready for review, never closes an issue or moves a ticket to done, and never archives this session.
+- `/simplicity:just-finish-it` ships the work and closes it. This skill never merges a PR, never marks a PR ready for review, never closes an issue or moves a ticket to done, and never archives this session or one it supervises.
 
-Like every simplicity skill it is conservative: it never discards or stashes work, never bypasses a check, and never messages a person beyond the tracker updates in step 2.
+Like every simplicity skill it is conservative: it never discards or stashes work, never bypasses a check, never interrupts an agent mid-task, and never messages a person beyond the tracker updates in step 3.
 
 ## 0. Before you start
 
@@ -30,13 +32,44 @@ Like every simplicity skill it is conservative: it never discards or stashes wor
 - the session is in plan mode: say that this command commits and pushes, so it can't run in plan mode;
 - this session's title ends in "-> Handed Off" (or `-&gt;`, or `→`): say it was handed off already, so the work continues in its child.
 
-A title that already ends in "-> On hold" doesn't stop the run: the session is going on hold again, and step 3 keeps its first pre-hold title.
+A title that already ends in "-> On hold" doesn't stop the run: the session is going on hold again, and step 4 keeps its first pre-hold title.
 
 The arguments this run was given: "$ARGUMENTS". They're empty when there were none. `--pr` is the only one.
 
 Keep a running **pending list** from step 1 on, as shift-session does. Anything that stops a step from finishing cleanly goes on it, each item with the next step that clears it. Never repeat a secret's value anywhere, including the pending list, the trackers, the memory note and the handoff.
 
-## 1. Commit and push
+## 1. Wind down what this session supervises
+
+This step is for an orchestrator: a session that started, drives or waits on other agents or sessions. It runs before anything is committed, because what those agents produce belongs in the WIP commit and the handoff, and because the supervisor stops last. When this session supervises nothing, say so in the report and go to step 2.
+
+**Inventory.** Find everything this session supervises, from the conversation and from the tools the host has:
+
+- in-process subagents started with the Agent tool, running or finished with a result not yet collected, and workflows started with the Workflow tool;
+- background shell tasks that do work rather than serve, such as a test run, a build or a long script (servers belong to step 6);
+- side and child sessions: in the desktop app, the rows of the session list tool with `{"linked": true}` whose `startedBy` is this session's id and that aren't archived; in a cloud session, the sessions this one created with `create_session`; and the teammates `ListAgents` lists;
+- the dispatchers: the loops, wakeups, scheduled tasks and monitors this session armed to check on those agents and hand them their next piece of work.
+
+For each one, note what it is doing right now and where its work lives: its own branch and SHA, or the files it writes into this tree.
+
+**The shutdown list.** Before anything is stopped, write a task list that defines the shutdown: one item per supervised agent or session, in the order they stop, each saying what it is, what it's doing, how it stops (the rules below) and the state it must be left in. The last item is always this session's own hold: the orchestrator stops last. Create the list with the task tools when the host has them (`TaskCreate`, or `TodoWrite`), and mark each item done as that agent or session stops; without them, keep the list in the report. The list, with each item's end state, goes into the handoff in step 4, so the session that resumes knows what ran and what it left.
+
+The order is fixed:
+
+1. **Dispatchers first, so nothing new starts.** Stop every loop, wakeup, scheduled task and monitor that would hand out more work: `ScheduleWakeup` with `stop: true`, `CronDelete`, `update_trigger` with `enabled: false` on a scheduled task this session created to drive its agents, `TaskStop` on a monitor. Work that starts now would only be abandoned. Leave a scheduled task or watch the user set up for another purpose, and name it in the report.
+2. **Nothing new.** From here on, start no agent, send no new work to one, and dispatch nothing a finished agent would have been given next. That next piece of work goes into the handoff as a next step instead.
+3. **Let in-flight work finish.** Never interrupt, kill, cancel or archive a supervised agent or session that is mid-task: a halt wastes the work it has already done and can leave its files half-written. Instead:
+   - **An in-process subagent or workflow**: wait for its result. The harness notifies you when it ends; don't poll it in a busy loop.
+   - **A background task doing work**: wait for it to end.
+   - **A session mid-turn** (a side session, a child, a teammate): send it one message with the host's message tool (`SendMessage`, or `send_message` with priority `later`, never `now`, so it arrives when the turn ends). The message says: this session is going on hold for the day; finish the task you're on and start nothing new; if you supervise agents or sessions yourself, wind them down the same way, each after its current task, and stop last; commit your work on your branch as a WIP commit and push it, never to the default branch, never forced, holding back any file with a secret; then reply with the branch and SHA, what's done, and what's unfinished with its next step, and stop. A message is delivered, not answered: wait for the reply, or for the session to go idle.
+   - **An idle session**: it has already stopped. Read its state (its branch, whether it's pushed, anything uncommitted) instead of messaging it. One with unpushed work that can't be messaged goes on the pending list.
+
+   Wait without blocking: a `sleep` of a few minutes run as a background command, or a Monitor, then re-check the session list, the task or the reply. Keep waiting while the work moves. If an agent is stuck (nothing changed over three checks) or a session doesn't answer, leave it running rather than halt it, put it on the pending list with the next step "collect its result; it was still working on <task> when the hold ran", and move on. Never wait on anything the user set up to run independently of this session.
+4. **Collect.** When an agent or session finishes, record what it did and what it left, in its shutdown-list item and in the handoff. Files it wrote into this tree go into step 2's WIP commit. Its own branch and SHA go into the handoff's Repository state. Supervised sessions are left idle and open: never archive one, even when its work is pushed, since in the desktop app archiving removes its worktree, and archiving is the user's call. List them in the report so the user can archive them.
+5. **This session last.** Only when every item above is done or on the pending list does this session go on to step 2. Its own stop is step 7's rename, after its state is saved.
+
+An item that didn't end cleanly (a session that couldn't be messaged, an agent still running, a result that couldn't be read) goes on the pending list with its next step. A wind-down never turns into a question.
+
+## 2. Commit and push
 
 Follow shift-session's step 1 with all of its rules. They are, in short:
 
@@ -48,24 +81,24 @@ Follow shift-session's step 1 with all of its rules. They are, in short:
 
 The changes for a hold:
 
-- **A WIP commit.** Commit the uncommitted work even when it's half-done or doesn't build: that's the point of the hold. Start the message with `WIP:` unless the project's CLAUDE.md sets another convention, and say what the work is, that it's on hold, and where it stops. Never stash, discard or reset anything, and leave stashes in place: list them as pending.
-- **The branch for default-branch work** is `hold/<topic-slug>` (the topic from step 3, lowercase, words joined by dashes) instead of `shift/<topic-slug>`. The pending item about the local default branch being ahead is the same, and it stays pending: never reset, rewind or push the default branch yourself, even after the work is safe on the new branch. That reset is the user's step, once the branch merges.
+- **A WIP commit.** Commit the uncommitted work even when it's half-done or doesn't build: that's the point of the hold. It includes what step 1's finished agents wrote into this tree. Start the message with `WIP:` unless the project's CLAUDE.md sets another convention, and say what the work is, that it's on hold, and where it stops. Never stash, discard or reset anything, and leave stashes in place: list them as pending.
+- **The branch for default-branch work** is `hold/<topic-slug>` (the topic from step 4, lowercase, words joined by dashes) instead of `shift/<topic-slug>`. The pending item about the local default branch being ahead is the same, and it stays pending: never reset, rewind or push the default branch yourself, even after the work is safe on the new branch. That reset is the user's step, once the branch merges.
 - **PR, only with `--pr`.** If the branch has no PR, open one against the default branch, always as a draft, after the push. Without `--pr`, open none. Either way, never mark a PR ready, never merge one and never enable auto-merge.
 
 Record each branch's pushed head SHA. A clean tree whose branch is already pushed needs no commit and no push; say so.
 
-## 2. Update the trackers that exist
+## 3. Update the trackers that exist
 
 Follow shift-session's step 2: go through every row of its table, update each tracker whose evidence is present, skip the rest and say so. The changes for a hold:
 
 - The update says the work is **on hold**, not finished: what's done, what's pending, the branch or PR, and that it resumes from the session "<topic> -> On hold" or from the handoff note.
-- **Task list.** Mark completed only the items whose work is actually done. Leave every unfinished item open, and name it in the handoff.
-- **Memory.** Step 4 writes the handoff note, so skip shift-session's memory row here.
+- **Task list.** Mark completed only the items whose work is actually done, including step 1's shutdown items as each agent stopped and the work items a finished agent completed. Leave every unfinished item open, and name it in the handoff.
+- **Memory.** Step 5 writes the handoff note, so skip shift-session's memory row here.
 - Never close an item, move it to done, reassign it or @mention anyone.
 
 A tracker update that fails goes on the pending list and doesn't stop the hold.
 
-## 3. Titles and the handoff prompt
+## 4. Titles and the handoff prompt
 
 **Read this session's title.** In the desktop app use `get_session` with `"self"`, and keep its `sessionId` too: that's the **app id** (`local_…`) the title tool takes, and it isn't `$CLAUDE_CODE_SESSION_ID`, the id that keys the hold record. In the CLI run `python3 "${CLAUDE_SKILL_DIR}/scripts/on-hold.py" title`, which prints the title or fails when the session has none. Read `-&gt;` and `→` as `->`, as shift-session's step 3 says, and always write a plain `->`.
 
@@ -83,15 +116,17 @@ A tracker update that fails goes on the pending list and doesn't stop the hold.
   > 3. Clear the hold: `rm -f ~/.claude/simplicity/call-it-a-day/<this session's id>.json`, and delete the memory note `<its path>` and its line in the memory index.
   > 4. Run `git fetch origin` and check out `<branch>` before you read any code: this may be another machine or a fresh worktree.
 
-  Here "this session's id" is always `$CLAUDE_CODE_SESSION_ID`, and the app id is the `sessionId` from `get_session`; in the CLI there's no app id, so leave out the parenthesis and the title-tool route. Write the real pre-hold title into items 1 and 2 every time, never a placeholder or "its title": the session that reads this can't look it up. Leave out item 3's memory note when step 4 couldn't write one.
+  Here "this session's id" is always `$CLAUDE_CODE_SESSION_ID`, and the app id is the `sessionId` from `get_session`; in the CLI there's no app id, so leave out the parenthesis and the title-tool route. Write the real pre-hold title into items 1 and 2 every time, never a placeholder or "its title": the session that reads this can't look it up. Leave out item 3's memory note when step 5 couldn't write one.
 - **No archive line** and no "Part N": nothing starts a child.
 - **Pending** includes every item on the pending list with its next step, and, for anything that couldn't be pushed, says plainly that it exists only on this machine.
+- **Repository state** also lists each supervised session's branch and pushed SHA, from step 1's replies.
+- **Context** carries step 1's shutdown list with each item's end state: which agents and sessions ran, what each finished and left, which were still finishing, which sessions are left open and idle and on which branch, and the next piece of work that wasn't dispatched. A resumed session restarts from that, not from scratch.
 
 Wherever the prompt goes, pass its full text, never a placeholder.
 
-## 4. Save the state
+## 5. Save the state
 
-The state must survive even if this session is later archived or lost. It lives in three places: the pushed branches (step 1), the trackers (step 2), and the two records below.
+The state must survive even if this session is later archived or lost. It lives in three places: the pushed branches (step 2), the trackers (step 3), and the two records below.
 
 1. **The memory note.** When the session has a memory directory, save the handoff prompt there as `on-hold-<topic-slug>.md`, following the session's memory rules, and add a one-line pointer to the memory index if it keeps one (such as `MEMORY.md`). Start the note with this line, so an unrelated session that reads its memory leaves it alone: "On hold since <date>, from session `<id>` ("<topic> -> On hold"). Use this note only when the user asks to continue this work, then follow its resume steps." When there's no memory directory, say so in the report; the hold record still keeps the handoff on this machine.
 2. **The hold record.** Run:
@@ -102,15 +137,15 @@ The state must survive even if this session is later archived or lost. It lives 
 
    Without a memory note, write the handoff to a scratch file and pass that path instead. The helper copies the note into `~/.claude/simplicity/call-it-a-day/<session id>.json` along with both titles, and the resume hook reads it. If it fails (no Python, no session id), say so in the report: the handoff prompt's resume steps still work without it.
 
-## 5. Stop what this session started
+## 6. Stop what this session started
 
-Nothing should run overnight on the session's behalf. Stop what this session started, using cleanup's step 2 rules (`${CLAUDE_SKILL_DIR}/../cleanup/SKILL.md`): dev and preview servers, background shell tasks, monitors, and the wakeups, loops and check-ins it armed to drive its own work. Leave anything the user set up to keep running independently, such as a PR watch they asked for, and name it in the report. When a task's purpose isn't clear, leave it running and put it on the pending list rather than asking. Don't run `/simplicity:cleanup` itself, since it offers to archive, and don't delete scratch files.
+Nothing should run overnight on the session's behalf. Stop what this session started and step 1 didn't already cover, using cleanup's step 2 rules (`${CLAUDE_SKILL_DIR}/../cleanup/SKILL.md`): dev and preview servers, background shell tasks that have ended their work, monitors, and the wakeups, loops and check-ins it armed to drive its own work. Leave anything the user set up to keep running independently, such as a PR watch they asked for, and name it in the report. When a task's purpose isn't clear, leave it running and put it on the pending list rather than asking. Don't run `/simplicity:cleanup` itself, since it offers to archive, and don't delete scratch files.
 
 That includes the containers and compose stacks this session started, found the way cleanup's step 2b finds them: stop them (`docker stop <name>`, `docker compose -p <project> stop`) and name, in the report, the command that starts each one again. Never remove a container, volume or network, never drop a database and never prune: the work resumes later and needs its data. Leave alone any container or database that was already running, even if this session used it.
 
-## 6. Rename this session
+## 7. Rename this session
 
-Rename this session "<topic> -> On hold", last, once the state is saved. In the desktop app use the session title tool with `"self"`. In the CLI run `rename-session`'s helper directly, since its title rules don't allow this format:
+Rename this session "<topic> -> On hold", last, once the state is saved and everything it supervised has stopped. In the desktop app use the session title tool with `"self"`. In the CLI run `rename-session`'s helper directly, since its title rules don't allow this format:
 
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/../rename-session/scripts/rename-session.py" "<topic> -> On hold"
@@ -118,15 +153,16 @@ python3 "${CLAUDE_SKILL_DIR}/../rename-session/scripts/rename-session.py" "<topi
 
 Never archive this session and never start another one.
 
-## 7. Report
+## 8. Report
 
 Write the report as normal markdown:
 
 - **On hold as**: the new title, and the pre-hold title it gets back on resume.
+- **Wound down**, when step 1 found anything: the dispatchers it stopped, then one line per supervised agent or session: finished and what it left, still finishing (and pending), or couldn't be reached. Say which sessions are left open and idle, on which branch, for the user to archive. End the list with "This session stopped last." When nothing was supervised, say so in one line.
 - **Committed and pushed**: one line per branch with its SHA, and the draft PR if `--pr` opened one.
 - **Trackers**: one line per tracker, updated or skipped and why.
 - **Saved**: the memory note's path, or that there was no memory directory, and the hold record.
-- **Stopped**: what step 5 stopped, with the command that starts each container again, and what it left running.
+- **Stopped**: what step 6 stopped, with the command that starts each container again, and what it left running.
 - **Still to do**, whenever the pending list isn't empty: a numbered list, one item per line, each with a **Next:** step the user can take now, in the format shift-session's step 6 uses. Say plainly if anything exists only on this machine.
 
 Then write "To resume, keep typing in this session, or paste this prompt into a new one:", followed by the full handoff prompt in a fenced code block. In the CLI, add that `claude --resume <session id>` reopens this session.
@@ -145,4 +181,4 @@ On resume, before anything else: rename the session to its exact pre-hold title,
 
 ## Lifecycle
 
-**Encoded-preference, timelessness 6/10, last verified against claude-opus-5-5 and Claude Code 2.1.291 (2026-10) with seeded evals, and live in the desktop app on Claude Code 2.1.284.** The order of a hold and its safety rules (a WIP commit instead of lost work, never push to the default branch, never force-push, hold back secrets, never merge, never archive) are fixed preferences, and the shared ones live in shift-session. It scores 6 because it leans on the host's session title tools, on Claude Code's internal `custom-title` transcript records in the CLI, on the session's memory directory, and on the `UserPromptSubmit` hook input carrying `session_id` and `prompt`. Re-check step 3, step 6 and the resume hook whenever those change, and re-check step 0's pointers whenever shift-session's steps are renumbered.
+**Encoded-preference, timelessness 6/10, last verified against claude-opus-5-5 and Claude Code 2.1.291 (2026-10) with seeded evals, and live in the desktop app on Claude Code 2.1.284.** The order of a hold and its safety rules (a WIP commit instead of lost work, never push to the default branch, never force-push, hold back secrets, never merge, never archive, never halt a supervised agent mid-task, the supervisor stops last) are fixed preferences, and the shared ones live in shift-session. It scores 6 because it leans on the host's session title tools, on Claude Code's internal `custom-title` transcript records in the CLI, on the session's memory directory, on the `UserPromptSubmit` hook input carrying `session_id` and `prompt`, and, in step 1, on whichever task, session-list, message and scheduling tools the host exposes. Re-check step 1, step 4, step 7 and the resume hook whenever those change, and re-check step 0's pointers whenever shift-session's steps are renumbered.
