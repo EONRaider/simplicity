@@ -41,16 +41,40 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     archived. Only then does the hold go on, and the rename is the
     orchestrator's own, last, stop. The report gains a **Wound down**
     section. The old steps 1 to 7 are now 2 to 8.
+  - **Completion estimates, or a warning.** No in-flight run is waited
+    on without an estimate. Each one gets an estimate from its reported
+    progress (`TaskGet`, task output, `list_events`), its elapsed time
+    against its scope, or its own answer: the wind-down message now goes
+    at `next` priority, which joins the running turn without stopping
+    it, and asks first how long the current task has left. The estimate
+    becomes a finish time and a deadline of the estimate plus half
+    again, at least 5 minutes later, and the user is told how long the
+    wind-down should take before the first wait. A run with no estimate
+    (no end to its scope, or no progress signal at all) triggers an
+    immediate one-line warning that it may run without end, also sent
+    as a push notification when the host has one. It isn't waited on
+    and isn't halted: it goes on the pending list with a graceful stop
+    as its next step, since stopping it is the user's call. A run that
+    passes its deadline or stops moving gets the same warning. This
+    replaces the old stall rule, which waited with no upper bound while
+    anything moved.
   - **Evals.** New eval 11: an orchestrator with a running indexer
     agent, a mid-turn side session on its own branch and a dispatch
     loop firing in four minutes. Its live state says what a wait returns
     and what an interrupt would leave half-written. The grader gains
     `cd_shutdown_list`, `cd_self_last`, `cd_stops_first`, `cd_no_halt`,
     `cd_wind_down_message`, `cd_waits`, `cd_commit_after_wait` and
-    `cd_supervisor_last`.
+    `cd_supervisor_last`. Eval 11 also checks that both runs get an
+    estimate and the user hears the wind-down's estimate before the first
+    wait. New eval 12: a fuzzer agent with no time or run cap beside a
+    bounded tests agent; the grader gains `cd_estimates`,
+    `cd_estimate_before_wait`, `cd_warns_unbounded`,
+    `cd_no_question_about` and `cd_pending_with_stop`.
   - **Evidence.** Not run. The seeded evals and the unit tests weren't
     executed for this change; the grader's new checks were only checked
-    for shape against the eval's expectations (the CI consistency step).
+    for shape against the evals' expectations (the CI consistency step)
+    and against hand-written orderly and halting responses, where they
+    separated the two on every wind-down expectation.
 
 ## [v0.13.0] - 2026-10-28
 

@@ -1,6 +1,6 @@
 {
   "skill_name": "call-it-a-day",
-  "harness_notes": "Same harness as shift-session: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repos, trackers, memory directory and session tools, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. Besides Skill, these runs may also call Read, because the skill reads shift-session's SKILL.md from the plugin; the baseline has no plugin and nothing to read. `prompt` runs with the plugin loaded, `baseline_prompt` without it. Evals 6 and 7 test the resume: eval 6's seed ends with the resume hook's note, as a real next prompt in an on-hold session would, and eval 7's prompt is a pasted handoff, so both configurations get the same prompt there. Eval 11 seeds an orchestrator: a running background agent, a mid-turn side session and a dispatch loop. Its live state says what a wait returns and what an interrupt would leave behind, so the grader can tell an orderly wind-down from a halt.",
+  "harness_notes": "Same harness as shift-session: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repos, trackers, memory directory and session tools, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. Besides Skill, these runs may also call Read, because the skill reads shift-session's SKILL.md from the plugin; the baseline has no plugin and nothing to read. `prompt` runs with the plugin loaded, `baseline_prompt` without it. Evals 6 and 7 test the resume: eval 6's seed ends with the resume hook's note, as a real next prompt in an on-hold session would, and eval 7's prompt is a pasted handoff, so both configurations get the same prompt there. Eval 11 seeds an orchestrator: a running background agent, a mid-turn side session and a dispatch loop. Its live state says what a wait returns and what an interrupt would leave behind, so the grader can tell an orderly wind-down from a halt. Eval 12 seeds a fuzzer agent with no time or iteration cap next to a bounded agent: the bounded one gets an estimate and a wait, the fuzzer gets a warning that it may not end, and neither is halted.",
   "evals": [
     {
       "id": 1,
@@ -197,7 +197,7 @@
       "id": 11,
       "prompt": "/simplicity:call-it-a-day",
       "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost. Wind down the agents and the side session this session supervises first, in an orderly way, and stop last.",
-      "expected_output": "This session supervises a running indexer agent (ag_i2), a mid-turn side session 'Query layer docs' (local_dd44) and a dispatch loop. It writes a shutdown task list naming each of them with its own hold as the last item, stops the loop first so nothing new is dispatched, then waits for the indexer agent instead of stopping it and messages the side session to finish its current task and commit and push its work, never interrupting either. Only after both have stopped does it commit the parser's and indexer's files as a WIP commit on feat/search-rebuild, push without force, save the state and rename the session 'Search index rebuild -> On hold' as its last stop. Archives nothing. The handoff names the side session's branch claude/query-docs-9e2b.",
+      "expected_output": "This session supervises a running indexer agent (ag_i2), a mid-turn side session 'Query layer docs' (local_dd44) and a dispatch loop. It writes a shutdown task list naming each of them with its own hold as the last item, stops the loop first so nothing new is dispatched, estimates when the indexer agent and the side session finish from their reported progress and tells the user how long the wind-down should take before it waits, then waits for the indexer agent instead of stopping it and messages the side session to finish its current task and commit and push its work, never interrupting either. Only after both have stopped does it commit the parser's and indexer's files as a WIP commit on feat/search-rebuild, push without force, save the state and rename the session 'Search index rebuild -> On hold' as its last stop. Archives nothing. The handoff names the side session's branch claude/query-docs-9e2b.",
       "files": [
         "evals/files/session-orchestrator.md"
       ],
@@ -205,6 +205,8 @@
         "Writes a shutdown task list that names the indexer agent, the 'Query layer docs' side session and this session's own hold",
         "Puts this session's own hold last in the shutdown list",
         "Stops the dispatch loop before waiting for or messaging anything",
+        "Gives the indexer agent and the 'Query layer docs' session each a completion estimate",
+        "Tells the user the wind-down's estimated completion before the first wait",
         "Never interrupts, kills or stops the running indexer agent or the mid-turn side session",
         "Tells the 'Query layer docs' session to finish its current task and persist its work, without interrupting it",
         "Waits for the indexer agent to finish instead of halting it",
@@ -214,6 +216,26 @@
         "Renames the session only after every stop, message and wait: this session stops last",
         "Does not archive this session or the side session",
         "The handoff names the side session's branch claude/query-docs-9e2b"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "/simplicity:call-it-a-day",
+      "baseline_prompt": "I'm stopping for the day. Put this session on hold so I can pick the work up later with nothing lost. Wind down the agents this session supervises first, in an orderly way, and stop last.",
+      "expected_output": "Two background agents run: 'tests' (ag_t4, 4 of 6 tests written) is bounded, and 'fuzzer' (ag_f3) runs cargo fuzz with no time or run cap until it finds a crash, so it has no end. It gives the tests agent an estimate and waits for it, and warns the user before waiting that the fuzzer may run without end, naming the way to stop it gracefully, without asking a question and without halting it. It commits tests/regressions.rs only after the wait, pushes feat/parser-hardening without force, lists the fuzzer under Still to do, renames the session 'Parser hardening -> On hold' and archives nothing.",
+      "files": [
+        "evals/files/session-unbounded.md"
+      ],
+      "expectations": [
+        "Gives the tests agent a completion estimate",
+        "Warns the user, before the first wait, that the fuzzer may run without end",
+        "Never interrupts, kills or stops the fuzzer or the tests agent",
+        "Turns the warning into no question to the user",
+        "Waits for the tests agent before committing",
+        "Pushes feat/parser-hardening without force-pushing",
+        "Lists the fuzzer as pending with a way to stop it",
+        "Renames the session 'Parser hardening -> On hold', with 'On hold' in sentence case",
+        "Does not archive the session"
       ]
     }
   ]

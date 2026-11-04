@@ -58,7 +58,7 @@ claude plugin validate .
 
 ## Running the evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 73
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 74
 evals across the ten skills. `cleanup` also ships a 20-query trigger set for its description
 (`skills/cleanup/evals/trigger_eval_set.json`), and the eight skills you can name mid-sentence
 ship a 10-query set each that checks they run when named and stay quiet when paraphrased.

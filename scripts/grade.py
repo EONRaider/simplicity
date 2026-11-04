@@ -1956,6 +1956,103 @@ def cd_supervisor_last(r, meta):
     return ok, f"on-hold rename at {holds}, stops, messages and waits at {sorted(before)}"
 
 
+# Completion estimates and unbounded-run warnings (call-it-a-day step 1, item 3).
+ESTIMATE = re.compile(r"\b(?:eta|estimat\w*|about \d+|around \d+|~ ?\d+|\d+\s*(?:-|to)?\s*\d*\s*(?:min(?:ute)?s?|m)\b|"
+                      r"(?:until|by) \d{1,2}:\d{2}|\d+\s*(?:of|/)\s*\d+)", re.I)
+UNBOUNDED = re.compile(r"without (?:an )?end|no end\b|unbounded|open-ended|indefinite|never (?:finish|end|stop)|"
+                       r"may not (?:finish|end|stop)|no (?:time|iteration|run)s? (?:cap|limit)|no estimate|"
+                       r"can(?:'|no)t (?:be )?estimat|runs? forever|no (?:natural )?stopping point", re.I)
+STOP_WAY = re.compile(r"stop|sigint|ctrl[- +]?c|kill|max_total_time|-runs|checkpoint", re.I)
+
+
+def cd_masked(r):
+    """The response with every JSON action fence blanked out, so prose keeps its character offsets."""
+    return FENCE.sub(lambda m: " " * len(m.group(0)), r)
+
+
+def cd_prose_lines(r):
+    """(offset, line) for every prose line, action fences excluded."""
+    out, pos = [], 0
+    for line in cd_masked(r).splitlines(keepends=True):
+        if line.strip():
+            out.append((pos, line))
+        pos += len(line)
+    return out
+
+
+def cd_first_wait_pos(r):
+    """Character offset of the first fence holding a wait action, or None."""
+    for m in FENCE.finditer(r):
+        body = m.group(1)
+        try:
+            items = [json.loads(body)]
+        except json.JSONDecodeError:
+            try:
+                items = [json.loads(line) for line in body.splitlines() if line.strip()]
+            except json.JSONDecodeError:
+                continue
+        for data in items:
+            for d in data if isinstance(data, list) else [data]:
+                if is_action(d) and d["action"] != "ToolSearch":
+                    args = d.get("args", "")
+                    a = {"name": str(d["action"]), "args": args if isinstance(args, str) else json.dumps(args)}
+                    if cd_plain(a) and WAIT.search(raw(a)):
+                        return m.start()
+    return None
+
+
+def cd_estimate_lines(r):
+    """Prose lines and task-list entries that carry a completion estimate."""
+    lines = [l for _, l in cd_prose_lines(r)]
+    lines += [d["args"] for d in action_blocks(r) if TASK_TOOL.search(d["name"])]
+    return [l for l in lines if ESTIMATE.search(l)]
+
+
+def cd_estimates(*targets):
+    """Every target appears on a line, or in a task entry, that carries a completion estimate."""
+    def check(r, meta):
+        est = cd_estimate_lines(r)
+        miss = [t for t in targets if not any(re.search(t, l, re.I) for l in est)]
+        return not miss, f"no estimate for {miss}" if miss else f"estimates for all of {list(targets)}"
+    return check
+
+
+def cd_estimate_before_wait(r, meta):
+    """A prose estimate line comes before the first wait."""
+    first = cd_first_wait_pos(r)
+    hit = [pos for pos, l in cd_prose_lines(r) if ESTIMATE.search(l) and re.search(r"wind|wait|finish|done|left|remain", l, re.I)]
+    ok = bool(hit) and (first is None or hit[0] < first)
+    return ok, f"first estimate line at {hit[:1]}, first wait at {first}"
+
+
+def cd_warns_unbounded(target):
+    """A prose line names the target as possibly unending, before the first wait when there is one."""
+    def check(r, meta):
+        first = cd_first_wait_pos(r)
+        hit = [pos for pos, l in cd_prose_lines(r) if re.search(target, l, re.I) and UNBOUNDED.search(l)]
+        ok = bool(hit) and (first is None or hit[0] < first)
+        return ok, f"warning at {hit[:1]}, first wait at {first}" if hit else "no unbounded-run warning"
+    return check
+
+
+def cd_no_question_about(target):
+    def check(r, meta):
+        hit = [q for q in questions(r) if re.search(target, q, re.I)]
+        hit += [d["args"][:60] for d in action_blocks(r) if "askuserquestion" in d["name"].lower()]
+        return not hit, f"asked: {hit[0].strip()[:80]!r}" if hit else "no question"
+    return check
+
+
+def cd_pending_with_stop(target):
+    """The closing report has a pending section and a line naming the target with a way to stop it."""
+    def check(r, meta):
+        t = final_report(r)
+        hit = [l for l in t.splitlines() if re.search(target, l, re.I) and STOP_WAY.search(l)]
+        ok = bool(PENDING_HEAD.search(t)) and bool(hit)
+        return ok, f"pending line: {hit[0].strip()[:80]!r}" if hit else "target not listed as pending with a stop"
+    return check
+
+
 # ---------- just-move checks ----------
 SCHEDULE = re.compile(r"send_?later|create_?trigger", re.I)
 SUBSCRIBE = re.compile(r"subscribe_?pr_?activity", re.I)
@@ -2232,10 +2329,15 @@ CHECKS = {
                             cl_leaves_running("redis-cache"), cl_no_data_delete, cd_on_hold("Quota limits"), fin_no_archive],
     ("call-it-a-day", 11): [cd_shutdown_list(r"indexer|ag_i2", r"query layer docs|local_dd44", r"this session|on hold|orchestrator|supervisor|search index rebuild"),
                             cd_self_last(r"indexer|ag_i2", r"query layer docs|local_dd44"), cd_stops_first(r"loop|wakeup|schedule"),
+                            cd_estimates(r"indexer|ag_i2", r"query layer docs|local_dd44|docs/query"), cd_estimate_before_wait,
                             cd_no_halt(r"ag_i2|indexer", r"local_dd44|query layer docs"), cd_wind_down_message(r"local_dd44|query layer docs"),
                             cd_waits, cd_commit_after_wait, lambda r, m: fin_push_branch(r, "feat/search-rebuild"),
                             cd_on_hold("Search index rebuild"), cd_supervisor_last, fin_no_archive,
                             cd_handoff_block(r"claude/query-docs-9e2b")],
+    ("call-it-a-day", 12): [cd_estimates(r"\btests?\b|ag_t4|regression"), cd_warns_unbounded(r"fuzz|ag_f3"),
+                            cd_no_halt(r"ag_f3|fuzz", r"ag_t4|tests agent|regression"), cd_no_question_about(r"fuzz|ag_f3"),
+                            cd_commit_after_wait, lambda r, m: fin_push_branch(r, "feat/parser-hardening"),
+                            cd_pending_with_stop(r"fuzz|ag_f3"), cd_on_hold("Parser hardening"), fin_no_archive],
     ("rename-session", 1): [rs_one_rename, rs_title_format, rs_names(r"\bci\b|matrix", r"flaky|test_export"), rs_confirms,
                             rs_no_second],
     ("rename-session", 2): [rs_title_is("checkout retry bug")],

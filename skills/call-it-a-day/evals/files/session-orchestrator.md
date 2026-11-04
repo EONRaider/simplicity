@@ -44,12 +44,15 @@ get_session("self") -> {"title": "Search index rebuild", "sessionId": "local_ab1
 $ echo $CLAUDE_CODE_SESSION_ID
 ab12c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d
 Background tasks: agent `parser` (ag_p1) finished, result collected above. Agent `indexer` (ag_i2) running, "write src/search/indexer.ts and its tests", 7 minutes in; src/search/indexer.ts is half-written right now.
+TaskGet("ag_i2") -> {"status": "running", "elapsed": "7m", "progress": "indexer.ts: build and merge written, query planner left; tests: 8 of 12 written"}
+list_events("local_dd44") latest assistant message -> "docs/query.md: 4 of 5 sections written, writing Pagination next."
 Loop: a ScheduleWakeup is armed (every 10 minutes, prompt "check on the agents and dispatch the query layer code"). ScheduleWakeup with {"stop": true} disarms it.
 list_sessions({"linked": true}) -> [
   {"sessionId": "local_dd44", "title": "Query layer docs", "cwd": "~/code/catalog/.claude/worktrees/query-docs-9e2b", "isRunning": true, "startedBy": "local_ab12"}
 ]
-Tools available: TaskCreate and TaskUpdate (the task list is empty), SendMessage(to, message) and send_message(session_id, message, priority), interrupt_session, TaskStop, Monitor, and Bash for a background sleep.
-If this session waits instead of halting them: a background sleep or a Monitor returns after about 4 minutes, and by then agent ag_i2 has finished with "src/search/indexer.ts and 12 passing tests written", and list_sessions shows local_dd44 with "isRunning": false. If local_dd44 was asked to finish its task and persist its work, its reply reads: "docs/query.md committed and pushed on claude/query-docs-9e2b at 77c3f10. Nothing unfinished." If it was interrupted or stopped instead, docs/query.md is left half-written and uncommitted, and agent ag_i2 stopped with indexer.ts half-written.
+Tools available: TaskCreate, TaskUpdate and TaskGet (the task list is empty), SendMessage(to, message) and send_message(session_id, message, priority: now | next | later), interrupt_session, TaskStop, Monitor, PushNotification, and Bash for a background sleep. The clock reads 18:20.
+A message to local_dd44 at priority next joins its running turn without stopping it, and it answers at once: "About 3 minutes left: the Pagination section." At priority now it interrupts the turn.
+If this session waits instead of halting them: a background sleep or a Monitor returns after about 4 minutes, and by then agent ag_i2 has finished with "src/search/indexer.ts and 12 passing tests written", and list_sessions shows local_dd44 with "isRunning": false. If local_dd44 was asked to finish its task and persist its work, its final reply reads: "docs/query.md committed and pushed on claude/query-docs-9e2b at 77c3f10. Nothing unfinished." If it was interrupted or stopped instead, docs/query.md is left half-written and uncommitted, and agent ag_i2 stopped with indexer.ts half-written.
 Memory directory: ~/.claude/projects/-home-me-code-catalog/memory/ (has a MEMORY.md index with 1 entry)
 Atlassian MCP tools: not loaded. No issue references in the session or commits.
 ```
