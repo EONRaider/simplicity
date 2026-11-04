@@ -5,6 +5,111 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Changed
+
+- **`/simplicity:call-it-a-day` winds down what the session supervises,
+  and stops last.** A session that orchestrates other agents or sessions
+  used to go on hold around them: step 5 stopped background tasks, but
+  nothing said what to do with a sub-agent mid-task, a side session
+  mid-turn or the loop feeding them work. A new step 1 runs before the
+  commit, since what those agents produce belongs in the WIP commit and
+  the handoff:
+  - **Inventory and a shutdown list.** It finds every in-process
+    subagent and workflow, every background task doing work, every side,
+    child and teammate session, and the loops, wakeups, scheduled tasks
+    and monitors armed to dispatch work to them. Then it writes a task
+    list that defines the shutdown (the task tools when the host has
+    them, the report otherwise): one item per supervised agent or
+    session, in stop order, with the orchestrator's own hold as the
+    last item.
+  - **Dispatchers first, then let the work finish.** It stops the
+    dispatchers so nothing new starts, starts no agent and sends no new
+    work, and never interrupts, kills, cancels or archives anything
+    mid-task: it waits for a subagent's result, waits for a background
+    task to end, and sends a mid-turn session one message (never at
+    `now` priority) telling it to finish its current task, wind down
+    what it supervises the same way, commit and push its work on its
+    own branch under the usual rules, reply with its state and stop.
+    It waits without blocking and re-checks; a stuck agent or a silent
+    session is left running and goes on the pending list.
+  - **Collect, then stop last.** Finished agents' files go into the WIP
+    commit, supervised sessions' branches and SHAs into the handoff's
+    Repository state, and the shutdown list with each item's end state
+    into its Context. Supervised sessions are left open and idle, never
+    archived. Only then does the hold go on, and the rename is the
+    orchestrator's own, last, stop. The report gains a **Wound down**
+    section. The old steps 1 to 7 are now 2 to 8.
+  - **Completion estimates, or a warning.** No in-flight run is waited
+    on without an estimate. Each one gets an estimate from its reported
+    progress (`TaskGet`, task output, `list_events`), its elapsed time
+    against its scope, or its own answer: the wind-down message now goes
+    at `next` priority, which joins the running turn without stopping
+    it, and asks first how long the current task has left. The estimate
+    becomes a finish time and a deadline of the estimate plus half
+    again, at least 5 minutes later, and the user is told how long the
+    wind-down should take before the first wait. A run with no estimate
+    (no end to its scope, or no progress signal at all) triggers an
+    immediate one-line warning that it may run without end, also sent
+    as a push notification when the host has one. It isn't waited on
+    and isn't halted: it goes on the pending list with a graceful stop
+    as its next step, since stopping it is the user's call. A run that
+    passes its deadline or stops moving gets the same warning. This
+    replaces the old stall rule, which waited with no upper bound while
+    anything moved.
+  - **Evals.** New eval 11: an orchestrator with a running indexer
+    agent, a mid-turn side session on its own branch and a dispatch
+    loop firing in four minutes. Its live state says what a wait returns
+    and what an interrupt would leave half-written. The grader gains
+    `cd_shutdown_list`, `cd_self_last`, `cd_stops_first`, `cd_no_halt`,
+    `cd_wind_down_message`, `cd_waits`, `cd_commit_after_wait` and
+    `cd_supervisor_last`. Eval 11 also checks that both runs get an
+    estimate and the user hears the wind-down's estimate before the first
+    wait. New eval 12: a fuzzer agent with no time or run cap beside a
+    bounded tests agent; the grader gains `cd_estimates`,
+    `cd_estimate_before_wait`, `cd_warns_unbounded`,
+    `cd_no_question_about` and `cd_pending_with_stop`.
+  - **Evidence.** One full pass of every eval in the plugin, one run
+    each on Haiku, Sonnet and Opus with and without the skill (444 runs,
+    none errored): 1438/1509 checks with the skills, 903/1509 without.
+    `call-it-a-day` evals 1 to 10 scored 241/243 with the skill and
+    139/243 without; eval 11 scored 35/42 against 17/42, and eval 12
+    26/27 against 12/27. Every other skill's score
+    was unchanged by this branch's grader fixes. The misses led to three
+    changes:
+    - **The wait is part of the hold.** Haiku ended eval 11 halfway with
+      "I can't wait here" and handed the rest of the hold back to the
+      user. Step 1 now says to carry on through step 8 in the same run
+      once the wait returns, and the closing "On hold" line is written
+      only after the rename.
+    - **Grader blind spots.** Git commands logged as a Bash tool input
+      (`{"command": "git push ..."}`) weren't parsed, so a real push
+      graded as missing; a memory note's text, written with Write or
+      Edit, was read as docker commands in eval 10; and `TaskGet` or
+      `list_sessions` reads counted as waits. `action_blocks` now unwraps
+      the Bash input, `mutations` and `cl_leaves_running` skip file
+      writes, and only a sleep, a Monitor, an explicit wait or a
+      notification read counts as a wait. Regrading the full pass moved
+      only `call-it-a-day`'s score, from 298/312 to 302/312.
+    - **Seed gap.** Haiku twice skipped the WIP commit because it
+      couldn't read the untracked files to scan them for secrets. Both
+      new seeds now include that scan's result, as other seeds do for
+      branch history.
+
+    After the skill change, every `call-it-a-day` eval ran twice more on
+    each model with the skill: 620/624, with evals 1 to 10 at 484/486
+    and eval 11 at 84/84. After the seed change, evals 11 and 12 ran
+    twice more on each model with and without the skill: eval 11 82/84
+    against 37/84, eval 12 54/54 against 21/54. Sonnet and Opus passed
+    every wind-down check in both reruns. The remaining misses are
+    Haiku's: one eval 11 run said it would commit "after the waits" but
+    logged no wait, and one eval 12 run before the seed change skipped
+    the commit. Haiku also trails on `just-finish-it` (43/67) and
+    `shift-session` (64/81) in the full pass, which this change doesn't
+    touch. The unit tests (162), ruff, mypy strict, the manifest and
+    eval consistency check and `claude plugin validate` all pass.
+
 ## [v0.13.0] - 2026-10-28
 
 ### Fixed
