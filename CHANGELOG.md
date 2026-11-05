@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [Unreleased]
+## [v0.14.0] - 2026-11-05
 
 ### Changed
 
@@ -109,6 +109,9 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
     `shift-session` (64/81) in the full pass, which this change doesn't
     touch. The unit tests (162), ruff, mypy strict, the manifest and
     eval consistency check and `claude plugin validate` all pass.
+  - **Security scan.** SkillArtisan's `security_scan.py` with gitleaks
+    8.21.2 came back clean for `call-it-a-day`, and wrote a new
+    `.security-scan-passed` marker for it.
 
 ## [v0.13.0] - 2026-10-28
 
@@ -1615,7 +1618,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.13.0...HEAD
+[v0.14.0]: https://github.com/EONRaider/simplicity/compare/v0.13.0...v0.14.0
 [v0.13.0]: https://github.com/EONRaider/simplicity/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/EONRaider/simplicity/compare/v0.11.0...v0.12.0
 [v0.11.0]: https://github.com/EONRaider/simplicity/compare/v0.10.0...v0.11.0
