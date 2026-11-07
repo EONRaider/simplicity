@@ -8,8 +8,8 @@ so it counts against your Claude plan's usage limits, or bills your API key if o
 
 Every run is isolated from the machine it runs on: user-level settings, skills and plugins are skipped
 (--setting-sources project,local), MCP servers and claude.ai connectors are skipped (--strict-mcp-config), and the
-only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes; call-it-a-day's runs
-and just-move's runs also get the read-only Read, since those skills read other skills' SKILL.md files. Everything else the
+only tool available is Skill (--tools), so a with-skill run can still load a skill it invokes; call-it-a-day's, just-move's
+and speed-up's runs also get the read-only Read, since those skills read other skills' SKILL.md files. Everything else the
 model would do is logged as a JSON action block instead of executed.
 
 Usage: python3 scripts/run_evals.py --iteration <fresh-name> --runs 5 [--skills just-ask] [--models haiku sonnet opus] [--configs with_skill]
@@ -74,13 +74,18 @@ CALL_NOTE = ACTIONS_NOTE.replace(
 MOVE_NOTE = CALL_NOTE + (
     " When you would ask the user something with AskUserQuestion, log the call as an action block with its full "
     "input, assume the user picked the first option of each question, and carry on.")
+SPEED_NOTE = MOVE_NOTE + (
+    " A sub-agent can't run either: log the call as an action block whose args hold its full tool input, then write "
+    "the sub-agent's result yourself, following the brief you gave it, and carry on as if it had come back. If the "
+    "live state lists an `advisor` tool, log a call to it as {\"action\": \"advisor\", \"args\": \"\"}, then "
+    "write its review yourself and carry on.")
 NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
          "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE,
-         "call-it-a-day": CALL_NOTE, "just-move": MOVE_NOTE}
+         "call-it-a-day": CALL_NOTE, "just-move": MOVE_NOTE, "speed-up": SPEED_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config"]
-# call-it-a-day reads shift-session's SKILL.md, and just-move reads just-ask's and shift-session's, so their runs also
-# get Read. Read is read-only.
-TOOLS = {"call-it-a-day": "Skill,Read", "just-move": "Skill,Read"}
+# call-it-a-day reads shift-session's SKILL.md, just-move reads just-ask's and shift-session's, and speed-up reads
+# just-ask's and call-it-a-day's, so their runs also get Read. Read is read-only.
+TOOLS = {"call-it-a-day": "Skill,Read", "just-move": "Skill,Read", "speed-up": "Skill,Read"}
 
 
 def now():
@@ -172,7 +177,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
                                                  "rename-session", "promptfy", "shift-session", "call-it-a-day",
-                                                 "just-move"])
+                                                 "just-move", "speed-up"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

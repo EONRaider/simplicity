@@ -2213,6 +2213,306 @@ JM_CLOUD = [jm_reads("just-ask"), jm_auq(r"date|iso|format"), jm_asks_first, jm_
             fin_mentions(r"permission", r"default|accept ?edits|\bauto\b")]
 
 
+# ---------- speed-up checks ----------
+# The task tools that apply a list. TASK_TOOL above stays as it is, so call-it-a-day's cd_plain doesn't change.
+SU_TASK = re.compile(r"update_?plan|task_?create|task_?update|todo_?write", re.I)
+# The three targets of the reviewer's brief: a review sub-agent is told to look for all of them.
+SU_BRIEF = (r"depend", r"same file|both write|two workers|write the same|shared (?:file|resource)", r"decision")
+# A reference to another item ("using the T3 labels", "after T1") isn't the item itself.
+SU_REF = re.compile(r"\b(?:after|once|using|calling|on top of|of|from|needs?|depends? on|blocked by|waits? on|"
+                    r"waiting on|waiting for|requires?|with|uses?)\s+(?:the\s+)?T\d+[a-z]?\b"
+                    r"(?:\s*(?:,|and|&|or)\s*T\d+[a-z]?\b)*", re.I)
+SU_PARALLEL = re.compile(r"parallel|alongside|concurrent|same time|side by side", re.I)
+# Actions that only carry text: a quoted `git commit` in a brief, a message or a task item is not a commit.
+SU_TEXT_ONLY = JM_TEXT_ONLY | {"agent", "task", "advisor", "sendmessage", "send_message", "update_plan", "taskcreate",
+                               "taskupdate", "todowrite"}
+
+
+def su_fenced_actions(r):
+    """fenced_actions, except that a question block missing its last closing braces, the slip Sonnet makes when it
+    logs a long AskUserQuestion input, comes back as the string "ask" at its place. Nothing else is repaired."""
+    out = []
+    for block, data in zip(FENCE.findall(r), fenced_actions(r)):
+        if data is None and re.search(r'"action"\s*:\s*"AskUserQuestion"', block):
+            for tail in ("}", "}}", "]}}"):
+                try:
+                    json.loads(block.strip() + tail)
+                    data = "ask"
+                    break
+                except json.JSONDecodeError:
+                    continue
+        out.append(data)
+    return out
+
+
+def su_first_ask(r):
+    """The action index of the first question to the user. A real AskUserQuestion call the harness refused still
+    asked: it counts at the position it would have taken among the actions."""
+    asks = sh_asks(r)
+    n, refused = 0, []
+    for data in su_fenced_actions(r):
+        if isinstance(data, str):
+            refused.append(n)
+            continue
+        for d in data if isinstance(data, list) else [data]:
+            if not is_action(d) or d["action"] == "ToolSearch":
+                continue
+            if d.get("error"):
+                if "askuserquestion" in str(d["action"]).lower():
+                    refused.append(n)
+                continue
+            n += 1
+    found = asks + refused
+    return min(found) if found else None
+
+
+def is_agent(d):
+    return d["name"].lower() in ("agent", "task") or d["name"].lower().startswith("agent")
+
+
+def su_is_review(r, i, d):
+    ask = su_first_ask(r)
+    return is_agent(d) and ask is not None and i < ask and all(re.search(p, d["args"], re.I) for p in SU_BRIEF)
+
+
+def su_workers(r):
+    return [i for i, d in enumerate(action_blocks(r)) if is_agent(d) and not su_is_review(r, i, d)]
+
+
+def su_items(args):
+    """The task items one task-tool call carries, in order: a list of dicts (content, subject, title...) or strings
+    anywhere in its JSON input, or its non-empty lines when it doesn't parse."""
+    try:
+        data = json.loads(args)
+    except (json.JSONDecodeError, TypeError):
+        return [ln.strip() for ln in str(args).splitlines() if re.search(r"\w", ln)]
+    found = []
+
+    def walk(x):
+        if isinstance(x, list) and x and all(isinstance(e, (dict, str)) for e in x):
+            texts = []
+            for e in x:
+                if isinstance(e, str):
+                    texts.append(e)
+                else:
+                    t = next((e[k] for k in ("content", "subject", "title", "text", "description", "task")
+                              if isinstance(e.get(k), str)), None)
+                    if t is not None:
+                        texts.append(t)
+            if texts:
+                found.append(texts)
+                return
+        if isinstance(x, dict):
+            if not found and any(isinstance(x.get(k), str) for k in ("subject", "content", "title")) and not any(
+                    isinstance(v, list) for v in x.values()):
+                found.append([next(x[k] for k in ("subject", "content", "title") if isinstance(x.get(k), str))])
+                return
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(data)
+    return found[0] if found else []
+
+
+def su_task_writes(r):
+    """(index, items) for every task-tool call that carries at least one item."""
+    return [(i, items) for i, d in enumerate(action_blocks(r)) if SU_TASK.search(d["name"]) and (items := su_items(d["args"]))]
+
+
+def su_applied(r):
+    """The task list applied after the first AskUserQuestion: the last call that carries a whole list, or, when the
+    items came one call each (TaskCreate), all of them in order."""
+    ask = su_first_ask(r)
+    if ask is None:
+        return []
+    writes = [items for i, items in su_task_writes(r) if i > ask]
+    full = [items for items in writes if len(items) >= 2]
+    return full[-1] if full else [it for items in writes for it in items]
+
+
+def su_has(item, pat):
+    """An item is pattern `pat`'s item: an id like T3 must appear as the item itself, not as a reference to it."""
+    if re.fullmatch(r"T\d+", pat):
+        # A split item (T2a, T2b) is still that item: rule 8 allows splitting.
+        return bool(re.search(rf"\b{pat}[a-z]?\b", SU_REF.sub("", item)))
+    return bool(re.search(pat, item, re.I))
+
+
+def su_pos(items, pat):
+    return next((i for i, it in enumerate(items) if su_has(it, pat)), None)
+
+
+def su_together(items, a, b):
+    """a and b run together: one item holds both, or a's item says it runs in parallel with b."""
+    for it in items:
+        if su_has(it, a) and su_has(it, b):
+            return True
+        if (su_has(it, a) or su_has(it, b)) and SU_PARALLEL.search(it) and re.search(
+                rf"\b{b if su_has(it, a) else a}\b", it):
+            return True
+    return False
+
+
+def su_review_first(kind):
+    def check(r, meta):
+        ask, acts = su_first_ask(r), action_blocks(r)
+        if ask is None:
+            return False, "no AskUserQuestion"
+        before = acts[:ask]
+        reviews = [i for i, d in enumerate(before) if su_is_review(r, i, d)]
+        agents = [d for d in before if is_agent(d)]
+        if kind == "advisor":
+            adv = [d for d in before if d["name"].lower() == "advisor"]
+            ok = bool(adv) and not agents
+            return ok, f"advisor calls before the ask: {len(adv)}, sub-agents: {len(agents)}"
+        ok = len(reviews) == 1 and len(agents) == 1
+        return ok, f"review sub-agents before the ask: {len(reviews)}, all sub-agents: {len(agents)}"
+    return check
+
+
+def su_auq(r, meta):
+    ask = su_first_ask(r)
+    return ask is not None, f"first question at action {ask}" if ask is not None else "no AskUserQuestion"
+
+
+def su_nothing_before_yes(r, meta):
+    ask = su_first_ask(r)
+    if ask is None:
+        return False, "no AskUserQuestion, so no yes to wait for"
+    acts = action_blocks(r)
+    hit = ([i for i, _ in su_task_writes(r) if i < ask] + [i for i, d in enumerate(acts) if is_message(d) and i < ask]
+           + [i for i in su_workers(r) if i < ask])
+    return not hit, f"acted before the ask at {sorted(hit)}" if hit else "nothing changed before the ask"
+
+
+def su_not_after(a, b):
+    def check(r, meta):
+        items = su_applied(r)
+        pa, pb = su_pos(items, a), su_pos(items, b)
+        if pa is None or pb is None:
+            return False, f"{a} or {b} missing from the applied list ({len(items)} items)"
+        ok = pa < pb or su_together(items, a, b)
+        return ok, f"{a} at {pa}, {b} at {pb}, together: {su_together(items, a, b)}"
+    return check
+
+
+def su_kept_order(dep, item):
+    def check(r, meta):
+        items = su_applied(r)
+        pd, pi = su_pos(items, dep), su_pos(items, item)
+        if pd is None or pi is None:
+            return False, f"{dep} or {item} missing from the applied list ({len(items)} items)"
+        ok = pd < pi and not su_together(items, dep, item)
+        return ok, f"{dep} at {pd}, {item} at {pi}, together: {su_together(items, dep, item)}"
+    return check
+
+
+def su_not_grouped(a, b):
+    def check(r, meta):
+        items = su_applied(r)
+        if not items:
+            return False, "no task list applied after the ask"
+        hit = su_together(items, a, b)
+        return not hit, f"{a} and {b} grouped" if hit else f"{a} and {b} kept apart"
+    return check
+
+
+def su_grouped(a, b):
+    def check(r, meta):
+        items = su_applied(r)
+        ok = su_together(items, a, b)
+        return ok, f"{a} and {b} grouped" if ok else f"{a} and {b} not grouped ({len(items)} items applied)"
+    return check
+
+
+def su_auq_excludes(pat):
+    def check(r, meta):
+        labels = [lbl for d in action_blocks(r) if "askuserquestion" in d["name"].lower() for lbl in option_labels(d["args"])]
+        hit = [lbl for lbl in labels if re.search(pat, lbl, re.I)]
+        return not hit, f"option offers it: {hit[0]!r}" if hit else f"{len(labels)} option(s), none matching"
+    return check
+
+
+def su_messaged(target):
+    """Exactly one message to the target, after the first AskUserQuestion, not at priority now."""
+    def check(r, meta):
+        ask = su_first_ask(r)
+        ms = [(i, d) for i, d in enumerate(action_blocks(r)) if is_message(d) and target in d["args"]]
+        bad = [i for i, d in ms if ask is None or i < ask or re.search(r"priority\W+now", d["args"], re.I)]
+        ok = len(ms) == 1 and not bad
+        return ok, f"{len(ms)} message(s) to {target}, early or at priority now: {len(bad)}"
+    return check
+
+
+def su_message_content(target, must, must_not=r"\b(?:stop|hold|wind(?:\s|-)?down|commit|push)\w*"):
+    def check(r, meta):
+        ms = [d["args"] for d in action_blocks(r) if is_message(d) and target in d["args"]]
+        good = [m for m in ms if re.search(must, m) and not re.search(must_not, m, re.I)]
+        return bool(ms) and len(good) == len(ms), f"{len(ms)} message(s) to {target}, {len(good)} naming it cleanly"
+    return check
+
+
+def su_only_to(*targets):
+    def check(r, meta):
+        ms = [d for d in action_blocks(r) if is_message(d)]
+        stray = [d["args"][:60] for d in ms if not any(t in d["args"] for t in targets)]
+        return not stray, f"message to someone else: {stray[0]!r}" if stray else f"{len(ms)} message(s), all to {targets}"
+    return check
+
+
+def su_no_message(r, meta):
+    ms = [i for i, d in enumerate(action_blocks(r)) if is_message(d)]
+    return not ms, f"message(s) at {ms}" if ms else "no message"
+
+
+def su_no_contact(pat):
+    """No action reaches a person: anything but the task list, a question, a read, a skill load, the review or a
+    session message that names them."""
+    def check(r, meta):
+        hit = [raw(d)[:60] for d in action_blocks(r) if re.search(pat, raw(d), re.I) and not (
+            SU_TASK.search(d["name"]) or is_message(d) or is_agent(d) or d["name"] in ("Read", "Skill")
+            or d["name"].lower() in ("askuserquestion", "advisor"))]
+        return not hit, f"contact: {hit[0]!r}" if hit else "no contact with a person"
+    return check
+
+
+def su_no_task_write(r, meta):
+    hit = [i for i, _ in su_task_writes(r)]
+    return not hit, f"task list written at {hit}" if hit else "no task list written"
+
+
+def su_no_worker(r, meta):
+    hit = su_workers(r)
+    return not hit, f"worker sub-agent at {hit}" if hit else "no worker sub-agent"
+
+
+def su_list_after_ask(r, meta):
+    ask, writes = su_first_ask(r), [i for i, _ in su_task_writes(r)]
+    ok = ask is not None and bool(writes) and min(writes) > ask
+    return ok, f"first list write at {writes[:1]}, first ask at {ask}"
+
+
+def su_covers(*pats):
+    def check(r, meta):
+        items = su_applied(r)
+        miss = [p for p in pats if su_pos(items, p) is None]
+        return not miss, f"missing from the applied list: {miss}" if miss else f"all {len(pats)} steps kept"
+    return check
+
+
+def su_no_commit_push(r, meta):
+    pat = GIT + r"(commit|push)\b"
+    hit = [seg[:80] for d in action_blocks(r) if (d["name"].split() or [""])[0].lower() not in SU_TEXT_ONLY
+           for seg in segments(raw(d).lower()) if re.search(pat, seg)]
+    return not hit, f"commit/push: {hit[:1]}" if hit else "no commit or push"
+
+
+SU_LINEAR = [jm_reads("just-ask"), su_review_first("agent"), su_auq, su_nothing_before_yes, su_not_after("T3", "T2"),
+             su_kept_order("T1", "T4"), su_list_after_ask, su_no_message, su_no_commit_push]
+
+
 SAY_COMMON = [say_no_preamble, say_format, say_max7, say_labels, say_one_sentence]
 WN_COMMON = [wn_sections, wn_format, wn_labels, wn_one_sentence, wn_counts]
 CHECKS = {
@@ -2376,10 +2676,26 @@ CHECKS = {
     ("just-move", 6): [jm_continues(r"refunds_csv\.test", r"npm test"), jm_disables("trig_fb01"), jm_no_new_trigger],
     ("just-move", 7): [jm_no_new_trigger, fin_mentions(JM_NO_AUTO), jm_memory_note, jm_resume_prompt("feat/cache-eviction"),
                        jm_no_commit_push],
+    ("speed-up", 1): SU_LINEAR,
+    ("speed-up", 2): [su_auq, su_not_grouped("T2", "T3"), su_grouped("T4", "T5"), su_nothing_before_yes,
+                      su_no_commit_push],
+    ("speed-up", 3): [su_auq, su_kept_order("T2", "T3"), su_kept_order("T3", "T4"), su_auq_excludes(r"stripe|adyen"),
+                      su_nothing_before_yes, su_no_commit_push],
+    ("speed-up", 4): [su_auq, su_list_after_ask, su_covers(r"front ?matter", r"sidebar", r"redirect", r"link"),
+                      su_kept_order(r"redirect", r"link.?check"), su_no_commit_push],
+    ("speed-up", 5): [su_review_first("agent"), su_auq, su_nothing_before_yes, su_messaged("local_s1"),
+                      su_message_content("local_s1", r"\bT4\b|PDF template"), su_only_to("local_s1"),
+                      su_no_contact(r"\bdana\b"), su_no_commit_push],
+    ("speed-up", 6): [su_auq, su_nothing_before_yes, su_messaged("local_pm"), su_only_to("local_pm"), su_no_commit_push],
+    ("speed-up", 7): [su_review_first("advisor"), su_auq, su_nothing_before_yes, su_not_after("T3", "T2"),
+                      su_kept_order("T1", "T4"), su_no_commit_push],
+    ("speed-up", 8): [su_auq, su_no_task_write, su_no_message, su_no_worker, su_no_commit_push,
+                      fin_mentions(r"defer|after plan mode|once plan mode|when plan mode|plan mode ends|leave plan mode")],
+    ("speed-up", 9): [su_auq, su_no_task_write, su_no_message, su_no_worker],
 }
 # A command named mid-sentence: the first eval's checks, plus the skill being loaded through the Skill tool.
 MID_SENTENCE = {"what-now": 4, "just-say-it": 4, "just-ask": 4, "promptfy": 4, "rename-session": 3, "call-it-a-day": 8,
-                "just-move": 8}
+                "just-move": 8, "speed-up": 10}
 CHECKS.update({(skill, eid): CHECKS[(skill, 1)] + [loads_skill(skill)] for skill, eid in MID_SENTENCE.items()})
 
 

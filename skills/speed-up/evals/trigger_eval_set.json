@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:speed-up",
+    "should_trigger": true
+  },
+  {
+    "query": "/simplicity:speed-up tests",
+    "should_trigger": true
+  },
+  {
+    "query": "Before the next batch, can you run /simplicity:speed-up?",
+    "should_trigger": true
+  },
+  {
+    "query": "use speed-up",
+    "should_trigger": true
+  },
+  {
+    "query": "run speed-up on what's left",
+    "should_trigger": true
+  },
+  {
+    "query": "speed this up",
+    "should_trigger": false
+  },
+  {
+    "query": "go faster",
+    "should_trigger": false
+  },
+  {
+    "query": "can we parallelize the remaining tasks?",
+    "should_trigger": false
+  },
+  {
+    "query": "the test suite is slow, can you speed up the tests?",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:just-move ?",
+    "should_trigger": false
+  }
+]

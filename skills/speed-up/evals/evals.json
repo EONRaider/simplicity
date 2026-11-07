@@ -1,0 +1,181 @@
+{
+  "skill_name": "speed-up",
+  "harness_notes": "Same harness as just-move: each eval seeds a prior session from `files[0]`, the seed ends with a 'Live state' section standing in for the repo, the task list and the session tools, and every command or tool call is logged as a fenced ```json {\"action\", \"args\"} block. An AskUserQuestion call is logged the same way, and the run assumes the user picked the first option unless the eval sets `answer`. A sub-agent or advisor call is logged too, and the model writes its result itself. Besides Skill, these runs may also call Read, because the skill reads just-ask's and call-it-a-day's SKILL.md from the plugin.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "Reads just-ask, builds the dependency table, has one sub-agent review the proposal, then asks once. On the user's yes it applies a TodoWrite list in which T3 (labels, inputs ready) no longer waits behind T2 and T4 still follows T1. It finds no supervised or supervising parties, so it messages nobody. Commits nothing.",
+      "files": [
+        "evals/files/session-linear.md"
+      ],
+      "expectations": [
+        "Reads just-ask's SKILL.md with the Read tool",
+        "Has the proposal reviewed by one sub-agent before it asks",
+        "Asks for approval through AskUserQuestion",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Moves T3 up or runs it alongside T2, so it no longer waits behind T2",
+        "Keeps T4 after T1, never in the same parallel group",
+        "Applies the new task list after the user agrees",
+        "Messages no session or agent",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "T2 and T3 both write src/api/handlers.ts, so they stay sequential. T4 (OpenAPI examples) and T5 (dashboard) are independent and run as one parallel group. Nothing changes before the yes.",
+      "files": [
+        "evals/files/session-same-file.md"
+      ],
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Never puts T2 and T3, which both write src/api/handlers.ts, in one parallel group",
+        "Runs T4 and T5 as one parallel group",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "T3 and T4 wait on the provider decision (T2), so they keep their place; the decision is pointed to just-ask, not folded into the approval question. T5 (fixtures) can move up. Nothing changes before the yes.",
+      "files": [
+        "evals/files/session-decision.md"
+      ],
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Keeps T3 after the T2 provider decision, never grouped with it",
+        "Keeps T4 after T3, never grouped with it",
+        "The approval question offers no Stripe or Adyen option",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "There's no task list, so it builds the table from the plan in the transcript, says so, and creates the new list only after the yes, keeping every plan step and the link check last.",
+      "files": [
+        "evals/files/session-no-list.md"
+      ],
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Creates the task list only after the user agrees",
+        "Keeps every plan step: front matter, sidebar, redirects and the link check",
+        "Keeps the link check after the redirect map",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "T4's input (the design doc) already exists, so local_s1 can start now instead of waiting for T3. After the yes it applies the list and sends local_s1 one message at priority next naming T4. It leaves local_s2 alone, doesn't invent the docs session and doesn't contact Dana.",
+      "files": [
+        "evals/files/session-orchestrator.md"
+      ],
+      "expectations": [
+        "Has the proposal reviewed by one sub-agent before it asks",
+        "Asks for approval through AskUserQuestion",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Sends local_s1 one message after the user agrees, not at priority now",
+        "The message to local_s1 names T4 and doesn't tell it to stop, hold, commit or push",
+        "Messages no session but local_s1: not local_s2 and not the unlisted docs session",
+        "Doesn't contact Dana or any other person",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "T4 (the guide) only needs the spec, so it can run alongside T2. get_session shows the parent local_pm, which asked to hear about order changes: after the yes it sends local_pm one message at priority next.",
+      "files": [
+        "evals/files/session-child.md"
+      ],
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Sends local_pm one message after the user agrees, not at priority now",
+        "Messages no session but local_pm",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "Same work as eval 1, but the session has the advisor tool: it writes the proposal out, calls the advisor before asking, and spawns no review sub-agent.",
+      "files": [
+        "evals/files/session-advisor.md"
+      ],
+      "expectations": [
+        "Calls the advisor before it asks, and spawns no review sub-agent",
+        "Asks for approval through AskUserQuestion",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Moves T3 up or runs it alongside T2, so it no longer waits behind T2",
+        "Keeps T4 after T1, never in the same parallel group",
+        "Never commits or pushes"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "In plan mode it still analyses, reviews and asks, but writes no task list, messages nobody and starts no worker; the report lists the list update and the message to local_s1 as deferred.",
+      "files": [
+        "evals/files/session-plan-mode.md"
+      ],
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Writes no task list",
+        "Messages no session or agent",
+        "Starts no worker sub-agent",
+        "Never commits or pushes",
+        "The report lists the changes as deferred until plan mode ends"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "/simplicity:speed-up",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "The user picks \"Keep current order\": nothing changes and nobody is told.",
+      "files": [
+        "evals/files/session-linear.md"
+      ],
+      "answer": 2,
+      "expectations": [
+        "Asks for approval through AskUserQuestion",
+        "Writes no task list",
+        "Messages no session or agent",
+        "Starts no worker sub-agent"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Before the next batch, can you run /simplicity:speed-up?",
+      "baseline_prompt": "Can we get to the end of this session's work sooner without changing what it is? Work out which remaining tasks can safely start earlier or run in parallel, get the proposal reviewed, ask me before changing anything, then update the task list and tell any sessions that need to know.",
+      "expected_output": "Named mid-sentence, the command isn't expanded, so the model loads the skill through the Skill tool. Then the same result as eval 1.",
+      "files": [
+        "evals/files/session-linear.md"
+      ],
+      "expectations": [
+        "Reads just-ask's SKILL.md with the Read tool",
+        "Has the proposal reviewed by one sub-agent before it asks",
+        "Asks for approval through AskUserQuestion",
+        "Changes no task list, sends no message and starts no worker before the user's answer",
+        "Moves T3 up or runs it alongside T2, so it no longer waits behind T2",
+        "Keeps T4 after T1, never in the same parallel group",
+        "Applies the new task list after the user agrees",
+        "Messages no session or agent",
+        "Never commits or pushes",
+        "Loads simplicity:speed-up through the Skill tool, since the command was named mid-sentence and wasn't expanded"
+      ]
+    }
+  ]
+}
