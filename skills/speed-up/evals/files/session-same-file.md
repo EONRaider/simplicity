@@ -12,7 +12,7 @@ Session title: **Orders API hardening**
 - T4 Add the 429 response examples to `docs/openapi.yaml`
 - T5 Add the API dashboard as `ops/dashboards/api.json`
 
-The 429 body is already fixed by the platform team: `{"error": "rate_limited", "retry_after": <seconds>}`. The dashboard uses the existing `http_request_duration_seconds` metric, which the service already exports.
+The limit is settled: 60 requests per minute per API key, counted in the existing Redis instance. The 429 body is fixed by the platform team, with this exact example: `{"error": "rate_limited", "retry_after": 30}`. The dashboard uses the existing `http_request_duration_seconds` metric, which the service already exports.
 
 ## Live state (eval harness)
 

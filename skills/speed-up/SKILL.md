@@ -81,6 +81,8 @@ Every change must pass all of these rules. They are hard rules: a change that br
 
 When you aren't sure a rule holds, leave the change out and name it under **Unchanged** with the doubt.
 
+If no change survives, say so with the reason, skip steps 3 to 6, and end with step 7's report: nothing changed, nobody was notified. Check that conclusion against each item whose inputs already exist before you settle on it.
+
 ## 3. Write the proposal
 
 Write the whole proposal in the conversation now, before the review. The advisor reads the conversation and takes no input, so it can only review what's written here.
@@ -148,4 +150,4 @@ End with one line: "Objectives unchanged."
 
 ## Lifecycle
 
-**Encoded-preference, timelessness 6/10, not yet verified with evals (2026-11).** "Change only order and concurrency, never the objectives, and only after the user agrees" is a fixed preference. It scores 6 because it leans on the host's task tools (`update_plan`'s 12-item limit and `scope`), session-list and message tools, on the advisor tool, and on the Agent tool. Re-check step 0, step 1's parties and step 6 whenever those change, and re-check step 0's pointers whenever just-ask's steps or call-it-a-day's step 1 are renumbered.
+**Encoded-preference, timelessness 6/10, last verified against claude-sonnet-5-5 (2026-11) with seeded evals.** "Change only order and concurrency, never the objectives, and only after the user agrees" is a fixed preference. It scores 6 because it leans on the host's task tools (`update_plan`'s 12-item limit and `scope`), session-list and message tools, on the advisor tool, and on the Agent tool. Re-check step 0, step 1's parties and step 6 whenever those change, and re-check step 0's pointers whenever just-ask's steps or call-it-a-day's step 1 are renumbered.

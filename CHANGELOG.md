@@ -50,7 +50,35 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
 ### Evidence
 
-- EVIDENCE_PENDING
+- **Evals,** `--skills speed-up --models sonnet --runs 2`, both
+  configurations, all on `claude-sonnet-5-5` (40 runs), then 12 reruns
+  (below). Final result: 128/128 checks with the skill, 78/128 without
+  it. Every eval scored full marks with the skill. Without it, the
+  baseline applied changes before asking, grouped the two tasks that
+  write `handlers.ts`, messaged in plan mode, and reordered after a "keep
+  current order". Eval 4 (no task list) doesn't separate the two: the
+  baseline also scored 10/10.
+- **The first pass scored 122/128 with the skill.** What changed after
+  it:
+  - **Grader:** a real AskUserQuestion call the harness refused, and a
+    question block logged with its last closing brace missing (3 runs),
+    now count as asking. Both runs had asked and then waited, or applied
+    only after the logged answer. A split item (T2a, T2b) now counts as
+    its original id.
+  - **Eval 2's seed** didn't give the rate limit. Both runs treated it as
+    an open decision and held T4 back on it, the safe call. The seed now
+    states the limit and the exact 429 example; eval 2 was rerun (4 runs:
+    10/10 with the skill, 5/10 without).
+  - **One skill change:** when no change survives the rules, the skill
+    now says so and stops without asking. One eval 6 run had stopped
+    there without saying why. Evals 5 and 6 were rerun after it (8 runs:
+    26/26 with the skill).
+- **Trigger set,** with SkillArtisan's description optimizer, measuring
+  only (`--max-iterations 1 --holdout 0`, 3 runs per query, `sonnet`):
+  10/10, including the bare `/simplicity:speed-up`. The description
+  wasn't changed.
+- **Not run:** Haiku and Opus, more than 2 runs per cell, and evals 1, 3,
+  4 and 7 to 10 after the one-paragraph skill change.
 
 ## [v0.14.0] - 2026-11-05
 
