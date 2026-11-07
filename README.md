@@ -1,6 +1,6 @@
 # simplicity
 
-simplicity is a Claude Code plugin of ten small skills for long sessions. They ask every open question at once, re-state a long response in plain language, tell you where the task stands, rewrite a prompt, rename the session, prepare it to run unattended, and close the work out: hand it to a fresh session, put it on hold for the day, or push, merge and archive it. Nothing acts unless you ask: you type a command or name it in a sentence.
+simplicity is a Claude Code plugin of eleven small skills for long sessions. They ask every open question at once, re-state a long response in plain language, tell you where the task stands, rewrite a prompt, rename the session, prepare it to run unattended, shorten the path to its current goals, and close the work out: hand it to a fresh session, put it on hold for the day, or push, merge and archive it. Nothing acts unless you ask: you type a command or name it in a sentence.
 
 ## Install
 
@@ -21,6 +21,7 @@ claude --plugin-dir /path/to/simplicity
 |---|---|
 | [`/simplicity:just-ask [focus]`](docs/commands.md#just-ask) | Collects every question still open in the session and asks them all at once, each option with a recommendation. |
 | [`/simplicity:just-move [focus]`](docs/commands.md#just-move) | Gets the session ready to run on its own for as long as possible, including across usage-limit resets. |
+| [`/simplicity:speed-up [focus]`](docs/commands.md#speed-up) | Finds which remaining tasks can safely start earlier or run in parallel, and reorders the task list once you agree. |
 | [`/simplicity:just-say-it [N \| topic \| commit \| #PR \| file or URL \| text]`](docs/commands.md#just-say-it) | Re-states recent responses, or explains a commit, PR, document or snippet, as a short numbered list in plain language. |
 | [`/simplicity:what-now`](docs/commands.md#what-now) | Takes stock of the session and lists what's done, where the current task stands, and the next steps to finish it. |
 | [`/simplicity:just-finish-it [PR numbers \| repo path]`](docs/commands.md#just-finish-it) | Ships the session's work and closes it: pushes, merges the PRs whose CI is green, cleans up and archives the session. |

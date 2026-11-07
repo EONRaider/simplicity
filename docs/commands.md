@@ -32,6 +32,22 @@ Gets the session ready to run on its own for as long as possible, including acro
 - In plan mode it asks its questions and defers every fix.
 - It reads `just-ask`'s and `shift-session`'s SKILL.md files, so all three must come from the same plugin version.
 
+## speed-up
+
+`/simplicity:speed-up [focus]`
+
+Finds which remaining tasks can safely start earlier or run in parallel, and reorders the task list once you agree. It keeps the session's goals exactly as they are and changes only the order and concurrency of what's left. It writes out every open task with what it depends on, what it writes and what it waits on. From that it proposes the safe speed-ups: tasks whose inputs are ready, independent tasks that sub-agents can run side by side (at most three at once), work that can overlap a CI run or a long command, and tasks already done. It never moves a task ahead of what it depends on, never lets two parallel workers write the same file, and never starts anything that waits on a decision of yours. It has the proposal reviewed before you see it, asks you once, and only after your yes applies the new task list and tells the sessions affected by the change.
+
+### Notes
+
+- Nothing changes before your yes: not the task list, not a sub-agent, not a message. In plan mode it still analyses, reviews and asks, and lists the update and the messages as deferred until plan mode ends.
+- The review uses the `advisor` tool when your session has one, and otherwise one read-only sub-agent briefed to find the dependency the reordering breaks, the file two workers would both write, and the step that silently assumes a decision. Without either, it says the proposal is unreviewed.
+- An open decision a task waits on stays open: `speed-up` names it and points you to `just-ask`, rather than asking it in its own approval question.
+- It notifies only sessions and agents that the host's tools show exist, and only those the change affects: the session that started this one, the sessions this one started, and the sub-agents and teammates it runs. Each gets one message at priority `next`, which never interrupts a running turn, saying what moved and what to do differently. It never messages a person. In a session with nobody to tell, it says "No supervised or supervising parties found."
+- The desktop app applies the list with its task list (`update_plan`, up to 12 items; a longer list folds its tail into one item) and finds the parent and child sessions with its session tools. The CLI uses `TaskCreate` or `TodoWrite` and can message only its own agents and teammates, so a parent session named only in the conversation is reported, not messaged. Cloud sessions can message the sessions they created. Without task tools it prints the list as the plan of record; without message tools it names who should be told and sends nothing.
+- It never commits, pushes or changes permission settings. Workers in a parallel group don't commit; the session commits after the group ends.
+- It reads `just-ask`'s and `call-it-a-day`'s SKILL.md files, so all three must come from the same plugin version.
+
 ## just-say-it
 
 `/simplicity:just-say-it [N | topic | commit | #PR | file or URL | text]`

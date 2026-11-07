@@ -5,6 +5,53 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Added
+
+- **`/simplicity:speed-up [focus]`** shortens the path to the session's
+  current objectives without changing them. It writes out every open
+  task with what it depends on, what it writes (files, lockfiles, the
+  git index, a branch, a database, a port) and what it waits on, then
+  proposes the safe speed-ups: tasks whose inputs are ready, independent
+  tasks that sub-agents run side by side (at most three at once), work
+  that overlaps a CI run or a long command, and tasks already done.
+  - **Hard rules.** No task moves ahead of what it depends on, no two
+    parallel workers write the same resource, a task whose writes are
+    unknown never runs in parallel, and nothing that waits on a user
+    decision starts early. That decision is pointed to `just-ask`, never
+    folded into the approval question.
+  - **Reviewed, then asked once.** The `advisor` tool reviews the
+    written-out proposal when the session has one; otherwise one
+    read-only sub-agent looks for the broken dependency, the shared file
+    and the silent decision. Findings only remove changes. Then one
+    AskUserQuestion: apply it, or keep the current order.
+  - **Only after the yes** it applies the new task list (`update_plan`
+    in the desktop app, `TaskCreate` or `TodoWrite` in the CLI) and sends
+    one message at priority `next` to each session or agent that the
+    host's tools show exists and the change affects: the parent, the
+    sessions it started, the agents it runs. It never messages a person,
+    never commits or pushes, and in plan mode defers the update and the
+    messages.
+  - It reads `just-ask`'s and `call-it-a-day`'s SKILL.md, so all three
+    must come from the same plugin version.
+  - **Evals.** Ten seeded evals and a 10-query trigger set: a safe
+    reorder, two tasks that write the same file, a task waiting on a
+    decision, no task list, an orchestrator with decoy parties, a child
+    session with a parent, the advisor present, plan mode, a rejected
+    proposal, and the command named mid-sentence. `run_evals.py` and
+    `grade.py` gained the matching wiring and `su_` checks.
+
+### Changed
+
+- **`CONTRIBUTING.md` run counts** said 432 and 2,160 runs, which fit 72
+  evals rather than the 74 the plugin had. With speed-up's ten they're
+  now 504 and 2,520.
+
+### Evidence
+
+- EVIDENCE_PENDING
+
 ## [v0.14.0] - 2026-11-05
 
 ### Changed

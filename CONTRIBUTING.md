@@ -58,15 +58,15 @@ claude plugin validate .
 
 ## Running the evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 74
-evals across the ten skills. `cleanup` also ships a 20-query trigger set for its description
-(`skills/cleanup/evals/trigger_eval_set.json`), and the eight skills you can name mid-sentence
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 84
+evals across the eleven skills. `cleanup` also ships a 20-query trigger set for its description
+(`skills/cleanup/evals/trigger_eval_set.json`), and the nine skills you can name mid-sentence
 ship a 10-query set each that checks they run when named and stay quiet when paraphrased.
 
 To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p`
 call, so it counts against your Claude plan's usage limits, or bills your API key if one is
 configured. Every eval runs with and without the skill on Haiku, Sonnet and Opus, so
-`--runs 5` (the smoke preset the CHANGELOG uses) is 2,160 runs. `--runs` defaults to 1 (432
+`--runs 5` (the smoke preset the CHANGELOG uses) is 2,520 runs. `--runs` defaults to 1 (504
 runs); `--skills`, `--models`, `--evals` and `--configs` narrow the set.
 
 ```bash
@@ -83,12 +83,12 @@ Every run is isolated from the machine it runs on:
 - It skips user-level settings, skills and plugins (`--setting-sources project,local`).
 - It skips MCP servers and claude.ai connectors (`--strict-mcp-config`).
 - The only tool it can call is `Skill`, and a with-skill run may load a skill without asking,
-  as if you had approved the prompt. `call-it-a-day`'s and `just-move`'s runs can also call
-  the read-only `Read`, since those skills read other skills' SKILL.md files.
+  as if you had approved the prompt. `call-it-a-day`'s, `just-move`'s and `speed-up`'s runs can
+  also call the read-only `Read`, since those skills read other skills' SKILL.md files.
 
 The `just-finish-it`, `cleanup`, `rename-session`, `promptfy`, `shift-session`,
-`call-it-a-day` and `just-move` seeds end with a "Live state" snapshot that stands in for the
-repos and PRs. The model logs every command it would run as a JSON block, and the grader
+`call-it-a-day`, `just-move` and `speed-up` seeds end with a "Live state" snapshot that stands
+in for the repos and PRs. The model logs every command it would run as a JSON block, and the grader
 checks those blocks for order and safety. No real repository, PR or session is touched.
 
 The four Python helpers also have unit tests: the `pytest` command under [Setup](#setup).
