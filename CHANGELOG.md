@@ -109,10 +109,14 @@ repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 - **Measured** on git 2.56.1 in a throwaway repository: `git worktree
   remove` removed a worktree holding an ignored `target/` and `.env`
   with exit 0, and refused a locked one.
+- **AskUserQuestion on a turn another session began**, which the skill
+  relies on, was answered in the desktop app on 2026-11-11 in bypass
+  permission mode. This was reported by another session, not measured by
+  this change: three times, twice on turns another session's message
+  began and once on a turn a background-task event began. Other
+  permission modes are unmeasured, so the typed-reply fallback stays.
 - Not run: Haiku and Opus, the trigger set, a live run on a real disk,
-  macOS (`lsof` and `du -sk`), Podman, and AskUserQuestion on a turn that
-  another session's message began, which the skill relies on and the
-  desktop app hasn't been measured on.
+  macOS (`lsof` and `du -sk`) and Podman.
 
 ## [v0.15.1] - 2026-11-11
 
