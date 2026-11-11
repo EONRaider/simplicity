@@ -113,7 +113,7 @@ Without AskUserQuestion, write the same questions as a numbered markdown list an
 
 **Delete.** Only after the answer, and only the picked items. For each item, in order:
 
-1. Run step 3's checks again, right before the item, since a build may have started since the sweep. An item that now fails is held, and the report says why.
+1. Run step 3's checks again as their own commands, right before the item, even when the sweep ran them minutes ago: a build may have started since. Never reuse the sweep's results for this. An item that now fails is held, and the report says why.
 2. Delete it with one command that names one literal absolute path or id: no glob, no variable, no `~`, no trailing slash, and no `cd`. For example, `rm -rf -- /home/dev/code/app/.claude/worktrees/agent-a1/target`.
 3. Confirm it's gone.
 
