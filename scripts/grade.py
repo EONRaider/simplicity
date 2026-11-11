@@ -1587,6 +1587,40 @@ def sh_asks_once(r, meta):
     return len(asks) == 1, f"{len(asks)} AskUserQuestion action(s)"
 
 
+def sh_no_ask(r, meta):
+    """No AskUserQuestion: an answer inside a turn the user didn't start wouldn't let a start through."""
+    asks = sh_asks(r)
+    return not asks, f"AskUserQuestion at {asks}" if asks else "no AskUserQuestion"
+
+
+def sh_asks_typed_reply(r, meta):
+    """The report asks the user to type a short reply in this session, rather than asking through a tool."""
+    text = report(r)
+    ok = bool(re.search(r"\b(?:type|reply|send|say)\b[^.\n]{0,80}\b(?:go|yes|shift)\b", text))
+    return ok, "asks for a typed reply" if ok else f"no typed-reply ask: {text[-160:]!r}"
+
+
+def sh_no_remote_control(r, meta):
+    """Never names Remote Control: it says nothing about where the user is or why a start was refused."""
+    hit = re.search(r"remote[ _-]?control|remotecontrol", report(r))
+    return not hit, f"mentions {hit.group(0)!r}" if hit else "no Remote Control mention"
+
+
+def sh_auto_start(r, meta):
+    """The child was started by an automatic start tool, not offered as a chip."""
+    hit = [i for i, d in enumerate(action_blocks(r))
+           if re.search(r"start_?session|hand_?off_?to_?session", d["name"], re.I) and "skill" not in d["name"].lower()]
+    return bool(hit), f"automatic start at {hit}" if hit else "no automatic start"
+
+
+def sh_chip_part(topic, n):
+    def check(r, meta):
+        chips = [raw(d) for d in action_blocks(r) if re.search(r"spawn_?task", raw(d), re.I) and "skill" not in d["name"].lower()]
+        ok = [a for a in chips if re.search(rf"{topic}\s*(?:{PART_OR_OFF})\s*part\s*{n}\b", a, re.I)]
+        return bool(ok), f"chip: {ok[0][:80]!r}" if ok else f"{len(chips)} chip(s), none titled '{topic} -> Part {n}'"
+    return check
+
+
 # ---------- call-it-a-day checks ----------
 ARROW = re.compile(r"\s*(?:-&gt;|[-–—]+>|→)\s*")
 HOLD_TITLE = re.compile(r"(?:-&gt;|[-–—]+>|→)\s*on\s*hold\b", re.I)
@@ -2620,6 +2654,15 @@ CHECKS = {
                             sh_handed_off, fin_archives_last],
     ("shift-session", 13): [sh_child_started, sh_handed_off, fin_no_archive,
                             fin_mentions(r"shar|same (?:folder|worktree|checkout|directory)")],
+    ("shift-session", 14): [loads_skill("shift-session"), sh_no_ask, cl_no_commit_push, sh_no_child_no_rename,
+                            sh_no_tracker_write, sh_asks_typed_reply, sh_no_remote_control],
+    ("shift-session", 15): [loads_skill("shift-session"), sh_no_ask, sh_commits,
+                            lambda r, m: fin_push_branch(r, "feat/stream-export"), sh_no_child_no_rename,
+                            sh_asks_typed_reply, sh_no_remote_control],
+    ("shift-session", 16): [sh_no_ask, sh_commits, lambda r, m: fin_push_branch(r, "feat/stream-export"), sh_auto_start,
+                            sh_child_titled("billing export rewrite", 2), sh_handed_off],
+    ("shift-session", 17): [sh_chip_part("invoice pdf export", 3), fin_mentions(r"user's own message is needed|turn_origin"),
+                            sh_no_remote_control, sh_handed_off, fin_no_archive],
     ("call-it-a-day", 1): [sh_commits, lambda r, m: fin_push_branch(r, "feat/csv-import"), sh_no_pr, cd_no_child,
                            cd_persists("CSV importer"), cd_memory_note, cd_on_hold("CSV importer"), cd_rename_last,
                            cd_handoff_block(r"feat/csv-import", r"csv importer"), fin_no_archive, cd_no_merge],
