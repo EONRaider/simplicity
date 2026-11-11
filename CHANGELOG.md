@@ -5,6 +5,61 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [v0.15.1] - 2026-11-11
+
+### Fixed
+
+- **`shift-session` checks who started the turn before it starts the
+  child.** The desktop app refuses `start_session` and
+  `hand_off_to_session` on a turn that another session's message, a
+  `<side-sessions-event>`, a scheduled or monitor event, or the task
+  another session gave this one began. A shift on such a turn fell back to
+  a chip, and the refusal could be misattributed to Remote Control.
+  - **Step 0** now reads the message that began the turn. A hook's
+    message, an `AskUserQuestion` answer or a tool result doesn't change
+    it, and a `/simplicity:shift-session` inside another session's
+    message isn't a manual run. On such a turn, manual or `--auto`, it
+    calls no `AskUserQuestion`, commits and pushes the work (step 1, with
+    its usual safety rules) and nothing else, and asks in
+    one plain line for a typed reply such as "go" in this session. That
+    typed turn is the go-ahead for the whole shift, with no second ask.
+    The CLI is unchanged.
+  - **Never reads where the user is from `remoteControlActive` or
+    `remoteControlState`.** They don't reflect where the user is.
+  - **A refused start**, by either tool, is sent once more only when the
+    refusal names a missing or invalid parameter. Otherwise it isn't
+    retried or explained: the chip it falls back to and the report quote
+    the refusal word for word, and never name Remote Control.
+    `start_session` now gets `initiation: "user_asked"` and the
+    `background` summary the app requires with a fresh context.
+  - No other skill reads the Remote Control fields or starts sessions.
+    `call-it-a-day` and `speed-up` only message sessions; `just-move`
+    schedules resumes, which are non-user turns, so an unattended run that
+    reaches the shift threshold now waits for a typed "go".
+  - **Evals 14 to 17**: a turn begun by another session's message that
+    names the command, the threshold hook firing on a side-sessions event,
+    the typed "go" that follows, and a start refused on a user's turn.
+    `grade.py` gained `sh_no_ask`, `sh_asks_typed_reply`,
+    `sh_no_remote_control`, `sh_auto_start` and `sh_chip_part`.
+    `CONTRIBUTING.md`'s counts are now 88 evals, 528 and 2,640 runs.
+
+### Evidence
+
+- **Evals,** `--skills shift-session --evals 1 9 11 14 15 16 17 --models
+  sonnet --runs 2`, both configurations, all on `claude-sonnet-5-5` (28
+  counted runs). Evals were rerun as the change moved on (fixture names,
+  step 4's `background`, step 1 before the typed reply); only the latest
+  runs of each eval are counted. With the skill: 84/84 checks, and every
+  eval scored full marks. Without it: 44/84. The baseline started a child
+  on a turn begun by another session's message (eval 14), never asked for
+  a typed reply, and didn't rename the session after a refused start
+  (eval 17). Evals 1, 9 and 11 are the regression guards for user-typed
+  turns: a typed `/simplicity:shift-session` still starts the child, and
+  the hook path still asks once through `AskUserQuestion`.
+- Not run: Haiku and Opus, the other shift-session evals, and any live
+  start in the desktop app. `grade.py`'s new checks were first tested on
+  hand-written passing and failing responses for each new eval.
+
 ## [v0.15.0] - 2026-11-07
 
 ### Added
@@ -1693,6 +1748,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
+[v0.15.1]: https://github.com/EONRaider/simplicity/compare/v0.15.0...v0.15.1
 [v0.15.0]: https://github.com/EONRaider/simplicity/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/EONRaider/simplicity/compare/v0.13.0...v0.14.0
 [v0.13.0]: https://github.com/EONRaider/simplicity/compare/v0.12.0...v0.13.0

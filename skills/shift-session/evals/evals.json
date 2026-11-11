@@ -226,6 +226,75 @@
         "Does not archive the session",
         "Says the child shares this session's folder or worktree"
       ]
+    },
+    {
+      "id": 14,
+      "prompt": "<cross-session-message from=\"local_coord07\">Coordinator here: your context is at 71%. Run /simplicity:shift-session now so the work carries on in a fresh part.</cross-session-message>",
+      "baseline_prompt": "<cross-session-message from=\"local_coord07\">Coordinator here: your context is at 71%. Hand this off to a fresh session now: save the work and start a new session that carries on from here.</cross-session-message>",
+      "expected_output": "The turn began with another session's message, so it isn't the user's: the app would refuse a start on it. Loads the skill, calls no AskUserQuestion, has nothing to commit or push (the tree is clean and pushed), starts no child, offers no chip and renames nothing. It ends the turn with one plain line asking the user to type a short reply such as 'go' in this session. It never blames Remote Control, though get_session shows it on.",
+      "files": [
+        "evals/files/session-relayed-turn.md"
+      ],
+      "expectations": [
+        "Loads the shift-session skill",
+        "Calls no AskUserQuestion",
+        "Commits and pushes nothing (the tree is clean and pushed)",
+        "Starts no child session, offers no chip and renames nothing",
+        "Writes to no tracker",
+        "Asks the user to type a short reply in this session",
+        "Never mentions Remote Control"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "<side-sessions-event>Export benchmark ended its turn: \"Streaming export is 3.1x faster than the old one on the 2M-row fixture; numbers in bench/results.md.\"</side-sessions-event>\n\n<system-reminder>\nUserPromptSubmit hook additional context: simplicity: this session's context is about 71% full (142,000 of 200,000 tokens), at or above the 60% shift threshold. Suggest a shift to the user: invoke the simplicity:shift-session skill with the argument --auto. It asks the user once before it commits, pushes or hands off anything. If the app's own usage tool reports the context below the threshold, say nothing about it.\n</system-reminder>",
+      "baseline_prompt": "<side-sessions-event>Export benchmark ended its turn: \"Streaming export is 3.1x faster than the old one on the 2M-row fixture; numbers in bench/results.md.\"</side-sessions-event>\n\nContext is at 71%. Consider handing this off to a fresh session.",
+      "expected_output": "The context hook fires on a turn a side-sessions event began, so the --auto path runs on a turn the user didn't start. It commits the gzip work and pushes feat/stream-export without force, so the work is safe, but calls no AskUserQuestion, starts no child and renames nothing: it asks the user in one plain line to type 'go' in this session, and never blames Remote Control.",
+      "files": [
+        "evals/files/session-side-event.md"
+      ],
+      "expectations": [
+        "Loads the shift-session skill",
+        "Calls no AskUserQuestion",
+        "Commits the gzip work",
+        "Pushes feat/stream-export without force-pushing",
+        "Starts no child session, offers no chip and renames nothing",
+        "Asks the user to type a short reply in this session",
+        "Never mentions Remote Control"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "go",
+      "baseline_prompt": "go",
+      "expected_output": "The previous turn, begun by the coordinator session's message, asked the user to type 'go'. The user typed it, so this turn is the user's go-ahead for the whole shift: commits the gzip work on feat/stream-export, pushes it without force, starts the child 'Billing export rewrite -> Part 2' with start_session, renames this session Handed Off, and asks nothing.",
+      "files": [
+        "evals/files/session-typed-go.md"
+      ],
+      "expectations": [
+        "Calls no AskUserQuestion",
+        "Commits the gzip work",
+        "Pushes feat/stream-export without force-pushing",
+        "Starts the child with an automatic start tool, not a chip",
+        "Titles the child 'Billing export rewrite -> Part 2'",
+        "Renames this session 'Billing export rewrite -> Handed Off'"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "/simplicity:shift-session",
+      "baseline_prompt": "Hand this off to a fresh session: save the work and start a new session that carries on from here.",
+      "expected_output": "The user typed the command, but start_session is refused anyway. It doesn't retry or guess at the cause: it falls back to a spawn_task chip titled 'Invoice PDF export -> Part 3', quotes the refusal text word for word in the report, never says Remote Control caused it, renames this session Handed Off and doesn't archive, since the chip is waiting.",
+      "files": [
+        "evals/files/session-start-refused.md"
+      ],
+      "expectations": [
+        "Falls back to a chip titled 'Invoice PDF export -> Part 3'",
+        "Quotes the refusal text in the report",
+        "Never mentions Remote Control",
+        "Renames this session 'Invoice PDF export -> Handed Off'",
+        "Does not archive the session"
+      ]
     }
   ]
 }
