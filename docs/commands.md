@@ -6,8 +6,7 @@ What each skill does in full, with its requirements, limits and platform differe
 
 - Claude Code runs a typed command only when it starts the message. Named anywhere else ("can you run `/simplicity:what-now`?"), the command reaches Claude as plain text, and Claude loads the skill itself. That works for every skill except `just-finish-it`, which pushes and merges, so it runs only when typed as the first thing in a message. Named mid-sentence, Claude can't load it and may tell you it isn't installed. It is installed: send `/simplicity:just-finish-it` as its own message.
 - No skill fires on a paraphrase of what it does, with one exception: `cleanup` can also run when you ask Claude to wrap a session up.
-- `disk-cleanup` can also start from another session's message that names it, as when an orchestrator orders its workers to clean up. That run sweeps and asks you, and deletes only on your answer in that session.
-- Three things can act without a typed command. `shift-session`'s hook suggests a shift once the context window is 60% full, and asks you before doing anything. `call-it-a-day`'s hook speaks only in a session you put on hold, to give it its old title back when you come back to it. And `just-move` can schedule a resume that fires into the session after your usage limit resets, but only once you've agreed to it.
+- Four things can act without a typed command. `shift-session`'s hook suggests a shift once the context window is 60% full, and asks you before doing anything. `call-it-a-day`'s hook speaks only in a session you put on hold, to give it its old title back when you come back to it. And `just-move` can schedule a resume that fires into the session after your usage limit resets, but only once you've agreed to it. And `disk-cleanup` can start from another session's message that names it, as when an orchestrator orders its workers to clean up: that run sweeps and asks you, and deletes only on your answer in that session.
 
 ## just-ask
 
