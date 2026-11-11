@@ -5,7 +5,7 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
-## [Unreleased]
+## [v0.16.0] - 2026-11-11
 
 ### Added
 
@@ -1861,7 +1861,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
-[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.15.1...HEAD
+[v0.16.0]: https://github.com/EONRaider/simplicity/compare/v0.15.1...v0.16.0
 [v0.15.1]: https://github.com/EONRaider/simplicity/compare/v0.15.0...v0.15.1
 [v0.15.0]: https://github.com/EONRaider/simplicity/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/EONRaider/simplicity/compare/v0.13.0...v0.14.0
