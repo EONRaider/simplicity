@@ -5,6 +5,119 @@ All notable changes to simplicity are documented here. Format follows
 follows [Semantic Versioning](https://semver.org/). Version headers here match the
 repo's git tags, which follow GitHub's `vX.Y.Z` convention.
 
+## [Unreleased]
+
+### Added
+
+- **`/simplicity:disk-cleanup [--orchestrator]`** frees disk space
+  without losing work. It sweeps read-only, lists every reclaimable item
+  in one table with its exact size, owner, check results and a
+  recommended action, asks through AskUserQuestion, and deletes only what
+  the user picks. Then it measures again.
+  - **Sweep.** Free space comes from `df` per filesystem and each item's
+    size from `du` in exact bytes; a Docker figure that can't be read
+    exactly is labelled as Docker's. The candidates are worktrees, the build
+    output inside them, the session's scratch files, stopped containers,
+    dangling images, unused volumes, the databases the session created, and
+    tool caches. The container steps are skipped with one line when neither
+    Docker nor Podman is installed.
+  - **Ownership decides scope.** By default only the session's own area
+    can be offered. Orchestrator mode adds what no live session owns.
+    Anything with an unknown owner is held.
+  - **Four checks before a worktree or build folder is offered**: nothing
+    uncommitted or untracked; the head commit is on a remote or in a branch
+    that stays; no running process has its working directory or an open
+    file inside it (`/proc` on Linux, `lsof` on macOS); and it isn't another
+    live session's worktree. The checks run again right before each
+    deletion. A worktree with an ignored file that isn't build output, such
+    as `.env`, is held, because `git worktree remove` deletes ignored files
+    without asking.
+  - **Asking.** Rebuildable kinds can be picked by category. Irreversible
+    kinds (containers, images, volumes, databases) must each be picked by
+    name, and "all the volumes" picks nothing. Deletion goes by literal
+    absolute path, never with a glob, never with `--force`, never a prune,
+    and never through the desktop app's bulk worktree cleanup. The freed
+    amount is the `df` difference, shown beside the `du` sum.
+  - **Orchestrator mode.** It gathers candidate sessions from the linked
+    list and the sessions the user names, has the user confirm the list, and
+    sends each one order to run the skill on its own area. It waits for
+    their reports without polling, then sweeps archived sessions' leftover
+    worktrees and the shared caches. It never archives a session and never
+    deletes inside a live session's worktree, even when that session asks.
+  - **Consent stays where the deletion happens.** No session deletes on
+    another session's word. A peer's order may start a run that sweeps,
+    lists and asks the user in that session, and a claim in the order that
+    the user approved counts for nothing. Each subordinate asks the user
+    itself rather than the orchestrator relaying the answer, because a
+    relayed answer would still reach it as a peer message.
+  - In plan mode it sweeps and asks, deletes nothing and sends no order.
+  - **Fit with `cleanup`.** It keeps `cleanup`'s step 2b rules for
+    containers, volumes and databases. `cleanup`'s SKILL.md needs no change;
+    its entry in `docs/commands.md` now points to `disk-cleanup` for disk
+    space.
+  - **Evals.** Nine seeded evals and a 10-query trigger set: the own area
+    with stated picks, four held cases plus Docker missing, irreversible
+    items picked by category, plan mode, a "keep everything" answer, a
+    peer's order claiming approval, the orchestrator's orders, the
+    orchestrator's sweep after the reports, and the command named
+    mid-sentence. `run_evals.py` gained an eval `picks` field that states
+    the user's answers across several questions, so the delete path runs.
+    `grade.py` gained `dc_` checks. `CONTRIBUTING.md`'s counts are now 97
+    evals, 582 and 2,910 runs.
+
+### Evidence
+
+- **Evals,** `--skills disk-cleanup --models sonnet --runs 2`, both
+  configurations, all on `claude-sonnet-5-5`. The first pass was 36 runs.
+  After the changes below, the 18 with-skill runs were rerun; the
+  baseline runs don't load the skill, so the first pass's baseline runs
+  stand, regraded with the final checks. Final result: 186/186 checks
+  with the skill, every eval at full marks; 158/186 without it.
+  - The baseline removed agent-x9y8, whose owner is unknown, and called
+    the desktop app's bulk worktree cleanup (eval 8, both runs).
+  - It wrote paths into its orders to the workers (eval 7, both runs).
+  - It deleted volumes and images on "delete all the volumes and images"
+    (eval 3, run 1).
+  - It skipped the re-check before deleting (evals 1 and 9).
+  - It never reported to the ordering session before asking (eval 6).
+  - Evals 2 and 5 barely separate the two: the baseline scored 27/28 and
+    8/8 there.
+  - The checks that need the skill loaded (evals 6 and 9) can't pass
+    without it, as in every skill's mid-sentence eval.
+- **The first pass scored 176/186 with the skill.** What changed after
+  it:
+  - **Skill:** step 4 now says to run the pre-delete checks as their own
+    commands and never reuse the sweep's results. Three of six own-area
+    runs had skipped the re-check.
+  - **Grader:** "reply with the names you want removed" now counts as
+    asking again, but only once the run has acted on the first answer.
+    That rule keeps it from passing a baseline that had only asked once.
+  - **Grader:** deleting the ignored `node_modules` inside the docs-site
+    worktree now passes. The untracked draft survives that deletion; only
+    removing the worktree itself fails.
+  - **Grader:** a confirming question logged with its last brace missing,
+    which the grader repairs at the next action's position, now counts as
+    coming before the orders.
+  - **Grader:** an order no longer has to name the skill, which only the
+    skill would know; it still has to name nothing to delete and claim no
+    approval.
+  - **Harness:** two first-pass runs made a real AskUserQuestion call,
+    which the harness refuses, and then correctly waited, so the delete
+    path never ran. Neither recurred in the rerun.
+  - `grade.py`'s new checks were first tested on hand-written passing and
+    failing responses for evals 1, 6 and 7.
+- **Measured** on git 2.56.1 in a throwaway repository: `git worktree
+  remove` removed a worktree holding an ignored `target/` and `.env`
+  with exit 0, and refused a locked one.
+- **AskUserQuestion on a turn another session began**, which the skill
+  relies on, was answered in the desktop app on 2026-11-11 in bypass
+  permission mode. This was reported by another session, not measured by
+  this change: three times, twice on turns another session's message
+  began and once on a turn a background-task event began. Other
+  permission modes are unmeasured, so the typed-reply fallback stays.
+- Not run: Haiku and Opus, the trigger set, a live run on a real disk,
+  macOS (`lsof` and `du -sk`) and Podman.
+
 ## [v0.15.1] - 2026-11-11
 
 ### Fixed
@@ -1748,6 +1861,7 @@ harness.
 - An eval set per skill (`skills/*/evals/`) with seeded session transcripts,
   plus the harness that runs and grades it (`scripts/run_evals.py`, `scripts/grade.py`).
 
+[Unreleased]: https://github.com/EONRaider/simplicity/compare/v0.15.1...HEAD
 [v0.15.1]: https://github.com/EONRaider/simplicity/compare/v0.15.0...v0.15.1
 [v0.15.0]: https://github.com/EONRaider/simplicity/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/EONRaider/simplicity/compare/v0.13.0...v0.14.0

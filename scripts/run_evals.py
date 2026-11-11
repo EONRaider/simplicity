@@ -79,9 +79,13 @@ SPEED_NOTE = MOVE_NOTE + (
     "the sub-agent's result yourself, following the brief you gave it, and carry on as if it had come back. If the "
     "live state lists an `advisor` tool, log a call to it as {\"action\": \"advisor\", \"args\": \"\"}, then "
     "write its review yourself and carry on.")
+DISK_NOTE = ACTIONS_NOTE + (
+    " When you would ask the user something with AskUserQuestion, log the call as an action block with its full "
+    "input, then take the user's answer described below, or the first option of each question when none is described, "
+    "and carry on. A message you send to another session is logged the same way and gets no reply in this run.")
 NOTES = {"just-ask": AUQ_NOTE, "just-say-it": NO_REPO_NOTE, "what-now": NO_REPO_NOTE, "just-finish-it": ACTIONS_NOTE, "cleanup": ACTIONS_NOTE,
          "rename-session": ACTIONS_NOTE, "promptfy": PROMPTFY_NOTE, "shift-session": SHIFT_NOTE,
-         "call-it-a-day": CALL_NOTE, "just-move": MOVE_NOTE, "speed-up": SPEED_NOTE}
+         "call-it-a-day": CALL_NOTE, "just-move": MOVE_NOTE, "speed-up": SPEED_NOTE, "disk-cleanup": DISK_NOTE}
 ISOLATION = ["--setting-sources", "project,local", "--strict-mcp-config"]
 # call-it-a-day reads shift-session's SKILL.md, just-move reads just-ask's and shift-session's, and speed-up reads
 # just-ask's and call-it-a-day's, so their runs also get Read. Read is read-only.
@@ -135,6 +139,8 @@ def run_one(job):
     system = SEED_HEADER + seed + NOTES.get(skill, "")
     if ev.get("answer"):
         system += f" In this run the user picks option {ev['answer']} of that question, not the first."
+    if ev.get("picks"):
+        system += f" In this run the user's answer is: {ev['picks']}"
     prompt = ev["prompt"] if config == "with_skill" else ev["baseline_prompt"]
     cmd = ["claude", "-p", prompt, "--model", model, "--append-system-prompt", system,
            "--output-format", "stream-json", "--verbose"] + ISOLATION + ["--tools", TOOLS.get(skill, "Skill")]
@@ -177,7 +183,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--skills", nargs="+", default=["just-ask", "just-say-it", "what-now", "just-finish-it", "cleanup",
                                                  "rename-session", "promptfy", "shift-session", "call-it-a-day",
-                                                 "just-move", "speed-up"])
+                                                 "just-move", "speed-up", "disk-cleanup"])
     ap.add_argument("--models", nargs="+", default=["haiku", "sonnet", "opus"])
     ap.add_argument("--iteration", default="iteration-1")
     ap.add_argument("--runs", type=int, default=1)

@@ -58,15 +58,15 @@ claude plugin validate .
 
 ## Running the evals
 
-Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 88
-evals across the eleven skills. `cleanup` also ships a 20-query trigger set for its description
-(`skills/cleanup/evals/trigger_eval_set.json`), and the nine skills you can name mid-sentence
+Each skill ships seeded session transcripts and expectations in `skills/<name>/evals/`: 97
+evals across the twelve skills. `cleanup` also ships a 20-query trigger set for its description
+(`skills/cleanup/evals/trigger_eval_set.json`), and the ten skills you can name mid-sentence
 ship a 10-query set each that checks they run when named and stay quiet when paraphrased.
 
 To reproduce the benchmark in the CHANGELOG, run the commands below. Each run is a `claude -p`
 call, so it counts against your Claude plan's usage limits, or bills your API key if one is
 configured. Every eval runs with and without the skill on Haiku, Sonnet and Opus, so
-`--runs 5` (the smoke preset the CHANGELOG uses) is 2,640 runs. `--runs` defaults to 1 (528
+`--runs 5` (the smoke preset the CHANGELOG uses) is 2,910 runs. `--runs` defaults to 1 (582
 runs); `--skills`, `--models`, `--evals` and `--configs` narrow the set.
 
 ```bash
@@ -87,7 +87,7 @@ Every run is isolated from the machine it runs on:
   also call the read-only `Read`, since those skills read other skills' SKILL.md files.
 
 The `just-finish-it`, `cleanup`, `rename-session`, `promptfy`, `shift-session`,
-`call-it-a-day`, `just-move` and `speed-up` seeds end with a "Live state" snapshot that stands
+`call-it-a-day`, `just-move`, `speed-up` and `disk-cleanup` seeds end with a "Live state" snapshot that stands
 in for the repos and PRs. The model logs every command it would run as a JSON block, and the grader
 checks those blocks for order and safety. No real repository, PR or session is touched.
 

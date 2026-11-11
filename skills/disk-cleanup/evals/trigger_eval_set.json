@@ -1,0 +1,42 @@
+[
+  {
+    "query": "/simplicity:disk-cleanup",
+    "should_trigger": true
+  },
+  {
+    "query": "/simplicity:disk-cleanup --orchestrator",
+    "should_trigger": true
+  },
+  {
+    "query": "Before the next build, can you run /simplicity:disk-cleanup?",
+    "should_trigger": true
+  },
+  {
+    "query": "use disk-cleanup",
+    "should_trigger": true
+  },
+  {
+    "query": "run disk-cleanup on your area and report what you freed",
+    "should_trigger": true
+  },
+  {
+    "query": "free up some disk",
+    "should_trigger": false
+  },
+  {
+    "query": "clean up disk space",
+    "should_trigger": false
+  },
+  {
+    "query": "the disk is almost full, what's taking the space?",
+    "should_trigger": false
+  },
+  {
+    "query": "delete the target folder in this repo",
+    "should_trigger": false
+  },
+  {
+    "query": "can you run /simplicity:cleanup ?",
+    "should_trigger": false
+  }
+]
