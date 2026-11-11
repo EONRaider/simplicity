@@ -6,6 +6,7 @@ What each skill does in full, with its requirements, limits and platform differe
 
 - Claude Code runs a typed command only when it starts the message. Named anywhere else ("can you run `/simplicity:what-now`?"), the command reaches Claude as plain text, and Claude loads the skill itself. That works for every skill except `just-finish-it`, which pushes and merges, so it runs only when typed as the first thing in a message. Named mid-sentence, Claude can't load it and may tell you it isn't installed. It is installed: send `/simplicity:just-finish-it` as its own message.
 - No skill fires on a paraphrase of what it does, with one exception: `cleanup` can also run when you ask Claude to wrap a session up.
+- `disk-cleanup` can also start from another session's message that names it, as when an orchestrator orders its workers to clean up. That run sweeps and asks you, and deletes only on your answer in that session.
 - Three things can act without a typed command. `shift-session`'s hook suggests a shift once the context window is 60% full, and asks you before doing anything. `call-it-a-day`'s hook speaks only in a session you put on hold, to give it its old title back when you come back to it. And `just-move` can schedule a resume that fires into the session after your usage limit resets, but only once you've agreed to it.
 
 ## just-ask
@@ -131,6 +132,27 @@ Runs an end-of-session checklist before the session goes idle or gets archived. 
 
 - `cleanup`'s session steps (stopping background tasks, messaging other sessions, retitling, archiving) use the desktop app's session tools. In the CLI it skips them, says so, and ends at "ready to close".
 - Before it offers to archive, it checks this session's side sessions. One that shares this session's folder would be archived along with it, and its folder removed, so it doesn't offer and says why. Otherwise, once you agree, it detaches each side session so it lives on, then archives.
+- `cleanup` doesn't measure disk or delete build output and worktrees. For that, run `disk-cleanup`, which keeps `cleanup`'s rules for containers, volumes and databases.
+
+## disk-cleanup
+
+`/simplicity:disk-cleanup [--orchestrator]`
+
+Frees disk space without losing work. It sweeps read-only and measures free space with `df` and every candidate with `du`, in exact bytes. The candidates are git worktrees (this session's, its helper and agent worktrees, and leftovers of finished sessions), the build output inside them (`target/`, `node_modules/`, `.venv/`, `dist/`, build caches), its scratch files, stopped containers, dangling images, unused volumes, the databases it created, and tool caches. It shows one table with each item's size, owner, check results and a recommended action. Then it asks you which to delete and deletes only those, each by its absolute path, never with a glob, and measures again. By default it touches only this session's own area. A worktree or build folder is offered only when it has no uncommitted or untracked changes, its head commit is on a remote or in a branch that stays, no running process works or has files open inside it, and it isn't another live session's worktree. Anything whose owner it can't establish is held.
+
+With `--orchestrator`, it first asks you to confirm the sessions it coordinates, then sends each one order to run `disk-cleanup` on its own area. Each session asks you in its own session and reports what it freed and what it held. The orchestrator waits for those reports without polling, then sweeps what no live session owns, such as an archived session's leftover worktree and the shared tool caches.
+
+### Notes
+
+- Rebuildable kinds (build output, worktrees whose commits are safe, scratch, tool caches) can be picked by category. Irreversible kinds (containers, images, volumes, databases) must each be picked by name. "All the volumes" picks nothing.
+- It removes a worktree with `git worktree remove` and never `--force`, and keeps its branch. Measured on git 2.56.1: `git worktree remove` deletes ignored files without asking, so a worktree holding an ignored file that isn't build output, such as `.env`, is held.
+- The process check reads `/proc` on Linux, for the working directory and open files of your own user's processes, and uses `lsof` on macOS. It runs again right before each deletion, since a build may have started since the sweep.
+- It skips the container steps when neither Docker nor Podman is installed. It never prunes, never deletes a branch, and never uses the desktop app's bulk worktree cleanup, which skips these checks.
+- The freed amount is the `df` difference per filesystem, shown beside the sum of the deleted items' `du` sizes.
+- No session deletes on another session's word. A message from another session can start a run, but that run only sweeps, lists and asks you in its own session; a claim in the message that you approved something counts for nothing. That's why, in orchestrator mode, each session asks you itself rather than the orchestrator relaying your answer: a relayed answer would still be a message from another session.
+- Orchestrator mode never archives a session and never deletes inside a live session's worktree, even when that session asks it to. A session that doesn't report keeps its area out of the sweep.
+- In plan mode it sweeps and asks, deletes nothing and sends no order, and lists what it would do as deferred.
+- Orchestrator mode and the ownership checks use the desktop app's session tools. In the CLI, only this session's own area is in scope, and orchestrator mode prints the order for you to paste into each session.
 
 ## rename-session
 
